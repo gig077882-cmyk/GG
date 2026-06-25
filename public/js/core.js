@@ -6,7 +6,7 @@ import {
   cameraSwitchButton, leaveButton, helpButton, themeModal, themeColorInput,
   themeTextInput, themeApplyButton, themeCancelButton, themeError,
   globalChatModal, globalChatForm, globalChatInput,
-  globalChatCloseButton, globalChatToggleButton,
+  globalChatCloseButton, globalChatToggleButton, themeModeToggleButton,
   demoButton, demoModal, demoModalContent, demoHeader, demoStage,
   demoVideo, demoLoader, demoLoupe, demoResizeHandle, demoClose,
   demoZoomIndicator, demoUserSelect, demoStatus, demoSourcePrevButton,
@@ -53,7 +53,15 @@ import {
   setChatHidden, toggleChatHidden, openChatFilePicker,
   updateChatFileButton, updateMobileChatControls, sendFileMessage, sendChatMessage
 } from "./chat.js";
-import { normalizeAvatarShape } from "./theme.js";
+import {
+  normalizeAvatarShape,
+  applyThemeMode,
+  cycleThemeMode,
+  updateThemeToggleButton,
+  readStoredThemeMode,
+  initAutoThemeListener,
+  getThemeMode
+} from "./theme.js";
 import { renderParticipants, updateLocalParticipant } from "./participants.js";
 import {
   demoSources, demoState, getDemoSourceIds, setDemoViewMode, updateDemoStatus,
@@ -203,26 +211,30 @@ const setTextColor = (r, g, b) => {
   const blue = clampRgb(b);
   const nextColor = `rgb(${red}, ${green}, ${blue})`;
   state.textColor = nextColor;
-  const background = `rgb(${mixChannel(red, 0, 0.92)}, ${mixChannel(
-    green,
-    0,
-    0.92
-  )}, ${mixChannel(blue, 0, 0.92)})`;
-  const panel = `rgb(${mixChannel(red, 0, 0.88)}, ${mixChannel(
-    green,
-    0,
-    0.88
-  )}, ${mixChannel(blue, 0, 0.88)})`;
-  const border = `rgb(${mixChannel(red, 0, 0.7)}, ${mixChannel(
-    green,
-    0,
-    0.7
-  )}, ${mixChannel(blue, 0, 0.7)})`;
-  document.documentElement.style.setProperty("--text-color", nextColor);
   document.documentElement.style.setProperty("--accent-color", nextColor);
-  document.documentElement.style.setProperty("--bg-color", background);
-  document.documentElement.style.setProperty("--panel-color", panel);
-  document.documentElement.style.setProperty("--border-color", border);
+  if (getThemeMode() === "light") {
+    document.documentElement.style.setProperty("--text-color", "#111111");
+  } else {
+    const background = `rgb(${mixChannel(red, 0, 0.92)}, ${mixChannel(
+      green,
+      0,
+      0.92
+    )}, ${mixChannel(blue, 0, 0.92)})`;
+    const panel = `rgb(${mixChannel(red, 0, 0.88)}, ${mixChannel(
+      green,
+      0,
+      0.88
+    )}, ${mixChannel(blue, 0, 0.88)})`;
+    const border = `rgb(${mixChannel(red, 0, 0.7)}, ${mixChannel(
+      green,
+      0,
+      0.7
+    )}, ${mixChannel(blue, 0, 0.7)})`;
+    document.documentElement.style.setProperty("--text-color", nextColor);
+    document.documentElement.style.setProperty("--bg-color", background);
+    document.documentElement.style.setProperty("--panel-color", panel);
+    document.documentElement.style.setProperty("--border-color", border);
+  }
   writeStorage(STORAGE_KEYS.textColor, nextColor);
   if (state.clientId) {
     updateLocalParticipant({ color: nextColor });
@@ -245,6 +257,9 @@ const applyStoredSettings = () => {
   if (storedName) {
     state.name = storedName.slice(0, 24);
   }
+  applyThemeMode(readStoredThemeMode());
+  initAutoThemeListener();
+  updateThemeToggleButton(themeModeToggleButton);
   const storedColor = readStorage(STORAGE_KEYS.textColor);
   if (storedColor) {
     const parsed = parseThemeColor(storedColor);
@@ -1620,6 +1635,13 @@ if (policyAcceptButton) {
   policyAcceptButton.addEventListener("click", () => {
     writeStorage(STORAGE_KEYS.policyAccepted, "true");
     closePolicyModal();
+  });
+}
+
+if (themeModeToggleButton) {
+  themeModeToggleButton.addEventListener("click", () => {
+    cycleThemeMode();
+    updateThemeToggleButton(themeModeToggleButton);
   });
 }
 

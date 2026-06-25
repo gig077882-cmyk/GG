@@ -36,6 +36,19 @@ body {
   overflow-x: hidden;
 }
 
+html[data-theme-mode="light"] body::before {
+  opacity: 0.15;
+}
+
+html[data-theme-mode="light"] body::after {
+  opacity: 0;
+  animation: none;
+}
+
+html[data-theme-mode="light"] #matrix-bg {
+  opacity: 0.06;
+}
+
 .landing-logo,
 .landing-title,
 .panel-title,
@@ -208,9 +221,18 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 12px;
   border-bottom: 1px dashed var(--border-color);
   padding: 10px 0;
   background: var(--bg-color);
+}
+
+.site-title {
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-color);
+  margin-left: 28px;
 }
 
 #status {
@@ -243,6 +265,32 @@ header {
   opacity: 0.62;
   color: var(--accent-color);
   border-color: rgba(185, 251, 192, 0.35);
+}
+
+#theme-mode-toggle {
+  position: fixed;
+  top: 6px;
+  right: 6px;
+  z-index: 1605;
+  width: 22px;
+  min-width: 22px;
+  min-height: 16px;
+  height: 16px;
+  padding: 0;
+  line-height: 1;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--accent-color);
+  border: 1px solid var(--border-color);
+  background: var(--panel-color);
+  opacity: 0.6;
+  text-transform: none;
+}
+
+#theme-mode-toggle:hover,
+#theme-mode-toggle:focus-visible {
+  opacity: 1;
+  border-color: var(--accent-color);
 }
 
 .title {
@@ -305,6 +353,12 @@ header {
 
 .landing-app-link:hover {
   border-bottom-color: var(--accent-color);
+}
+
+.landing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .landing-top {

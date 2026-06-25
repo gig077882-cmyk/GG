@@ -10,6 +10,7 @@
 export const STORAGE_KEYS = {
   name: "telemost.name",
   textColor: "telemost.textColor",
+  themeMode: "telemost.themeMode",
   avatarShape: "telemost.avatarShape",
   demoZoom: "telemost.demo.zoom",
   demoOffsetX: "telemost.demo.offsetX",

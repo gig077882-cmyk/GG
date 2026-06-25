@@ -11,7 +11,10 @@
     <div id="app" class="landing">
       <header class="landing-header">
         <div class="landing-logo">GB</div>
-        <a class="landing-app-link" href="index.html">Войти в приложение</a>
+        <div class="landing-header-actions">
+          <button id="theme-mode-toggle" type="button" aria-label="Toggle theme">A</button>
+          <a class="landing-app-link" href="index.html">Войти в приложение</a>
+        </div>
       </header>
       <main class="landing-main">
         <section class="landing-top reveal">
@@ -239,6 +242,10 @@
         });
       }
       patchAppLinksForMobile();
+      const themeToggleButton = document.getElementById("theme-mode-toggle");
+      if (themeToggleButton) {
+        themeToggleButton.addEventListener("click", cycleLandingThemeMode);
+      }
       const accepted = readPolicy() === "true";
       const returnTo = readReturnTo();
       if (isHelpMode && returnTo) {
@@ -255,6 +262,70 @@
       updatePolicyOverlay();
     </script>
     <script>
+      const LANDING_THEME_MODES = ["auto", "dark", "light"];
+      const LANDING_THEME_LABELS = { auto: "A", dark: "D", light: "L" };
+      const landingDarkPalette = {
+        text: "#cccccc",
+        bg: "#0c0c0c",
+        panel: "#000000",
+        border: "#333333"
+      };
+      const landingLightPalette = {
+        text: "#111111",
+        bg: "#f4f4f4",
+        panel: "#ffffff",
+        border: "#cccccc"
+      };
+      const resolveLandingAutoMode = () =>
+        window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      const readLandingThemeMode = () => {
+        try {
+          const value = localStorage.getItem("telemost.themeMode");
+          return LANDING_THEME_MODES.includes(value) ? value : "auto";
+        } catch {
+          return "auto";
+        }
+      };
+      const writeLandingThemeMode = (mode) => {
+        try {
+          localStorage.setItem("telemost.themeMode", mode);
+        } catch {}
+      };
+      const updateLandingThemeToggle = () => {
+        const button = document.getElementById("theme-mode-toggle");
+        if (!button) {
+          return;
+        }
+        const mode = document.documentElement.getAttribute("data-theme-mode") || "auto";
+        button.textContent = LANDING_THEME_LABELS[mode] || "A";
+        button.setAttribute("aria-label", `Theme: ${mode}`);
+      };
+      const applyLandingThemeMode = (mode) => {
+        const current = LANDING_THEME_MODES.includes(mode) ? mode : "auto";
+        const resolved = current === "auto" ? resolveLandingAutoMode() : current;
+        const palette = resolved === "light" ? landingLightPalette : landingDarkPalette;
+        document.documentElement.style.setProperty("--text-color", palette.text);
+        document.documentElement.style.setProperty("--bg-color", palette.bg);
+        document.documentElement.style.setProperty("--panel-color", palette.panel);
+        document.documentElement.style.setProperty("--border-color", palette.border);
+        document.documentElement.setAttribute("data-theme-mode", current);
+        writeLandingThemeMode(current);
+        updateLandingThemeToggle();
+      };
+      const cycleLandingThemeMode = () => {
+        const current = document.documentElement.getAttribute("data-theme-mode") || "auto";
+        const index = LANDING_THEME_MODES.indexOf(current);
+        applyLandingThemeMode(LANDING_THEME_MODES[(index + 1) % LANDING_THEME_MODES.length]);
+      };
+      applyLandingThemeMode(readLandingThemeMode());
+      window
+        .matchMedia("(prefers-color-scheme: light)")
+        .addEventListener("change", () => {
+          if ((document.documentElement.getAttribute("data-theme-mode") || "auto") === "auto") {
+            applyLandingThemeMode("auto");
+          }
+        });
+
       const readLandingTheme = () => {
         try {
           return localStorage.getItem("telemost.textColor");
@@ -309,26 +380,33 @@
         const green = clampRgb(color.g);
         const blue = clampRgb(color.b);
         const nextColor = `rgb(${red}, ${green}, ${blue})`;
-        const background = `rgb(${mixChannel(red, 0, 0.92)}, ${mixChannel(
-          green,
-          0,
-          0.92
-        )}, ${mixChannel(blue, 0, 0.92)})`;
-        const panel = `rgb(${mixChannel(red, 0, 0.88)}, ${mixChannel(
-          green,
-          0,
-          0.88
-        )}, ${mixChannel(blue, 0, 0.88)})`;
-        const border = `rgb(${mixChannel(red, 0, 0.7)}, ${mixChannel(
-          green,
-          0,
-          0.7
-        )}, ${mixChannel(blue, 0, 0.7)})`;
-        document.documentElement.style.setProperty("--text-color", nextColor);
+        const isLight = (document.documentElement.getAttribute("data-theme-mode") || "auto") === "light" ||
+          ((document.documentElement.getAttribute("data-theme-mode") || "auto") === "auto" &&
+            window.matchMedia("(prefers-color-scheme: light)").matches);
         document.documentElement.style.setProperty("--accent-color", nextColor);
-        document.documentElement.style.setProperty("--bg-color", background);
-        document.documentElement.style.setProperty("--panel-color", panel);
-        document.documentElement.style.setProperty("--border-color", border);
+        if (isLight) {
+          document.documentElement.style.setProperty("--text-color", "#111111");
+        } else {
+          const background = `rgb(${mixChannel(red, 0, 0.92)}, ${mixChannel(
+            green,
+            0,
+            0.92
+          )}, ${mixChannel(blue, 0, 0.92)})`;
+          const panel = `rgb(${mixChannel(red, 0, 0.88)}, ${mixChannel(
+            green,
+            0,
+            0.88
+          )}, ${mixChannel(blue, 0, 0.88)})`;
+          const border = `rgb(${mixChannel(red, 0, 0.7)}, ${mixChannel(
+            green,
+            0,
+            0.7
+          )}, ${mixChannel(blue, 0, 0.7)})`;
+          document.documentElement.style.setProperty("--text-color", nextColor);
+          document.documentElement.style.setProperty("--bg-color", background);
+          document.documentElement.style.setProperty("--panel-color", panel);
+          document.documentElement.style.setProperty("--border-color", border);
+        }
       };
       const stored = readLandingTheme();
       if (stored) {

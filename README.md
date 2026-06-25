@@ -1,4 +1,4 @@
-# Telemost
+# GB
 
 Клон Telegram-звонков с аудио/видео и чатом через WebRTC.
 

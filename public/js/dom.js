@@ -41,6 +41,7 @@ export const globalChatInput = document.getElementById("global-chat-input");
 export const globalChatSendButton = document.getElementById("global-chat-send");
 export const globalChatCloseButton = document.getElementById("global-chat-close");
 export const globalChatToggleButton = document.getElementById("global-chat-toggle");
+export const themeModeToggleButton = document.getElementById("theme-mode-toggle");
 export const demoButton = document.getElementById("btn-demo");
 export const demoModal = document.getElementById("demo-modal");
 export const demoModalContent = document.getElementById("demo-modal-content");
