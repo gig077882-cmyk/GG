@@ -3,16 +3,17 @@
  * @module demo
  */
 
-import { state, STORAGE_KEYS, DEMO_COMPACT_WINDOW } from "./state.js";
+import { state, STORAGE_KEYS, DEMO_COMPACT_WINDOW, isMobileCallMode } from "./state.js";
 import { log } from "./logger.js";
 import { readStorage, writeStorage } from "./storage.js";
+import { parseStoredNumber } from "./utils.js";
 import { appendChatMessage } from "./chat.js";
 import {
-  demoModal, demoModalContent, demoStage, demoVideo, demoLoader, demoLoupe,
-  demoUserSelect, demoZoomIndicator, demoStatus, demoSourcePrevButton,
-  demoSourceNextButton, demoZoomOutButton, demoZoomInButton, demoFitButton,
-  demoResetViewButton, demoFullscreenButton, demoShareToggleButton,
-  updateModalOverlayState
+  demoButton, demoModal, demoModalContent, demoHeader, demoStage, demoVideo,
+  demoLoader, demoLoupe, demoUserSelect, demoZoomIndicator, demoStatus,
+  demoSourcePrevButton, demoSourceNextButton, demoZoomOutButton, demoZoomInButton,
+  demoFitButton, demoResetViewButton, demoFullscreenButton, demoShareToggleButton,
+  demoResizeHandle, demoClose, updateModalOverlayState
 } from "./dom.js";
 
 /**
@@ -612,4 +613,347 @@ export const setDemoImageSource = (sourceId) => {
   };
   demoVideo.srcObject = source.stream;
   updateDemoControlState();
+};
+
+const demoWindowState = {
+  x: null,
+  y: null,
+  width: null,
+  height: null,
+  minWidth: 240,
+  minHeight: 160,
+  maxWidth: 960,
+  dragPointerId: null,
+  dragStartX: 0,
+  dragStartY: 0,
+  dragOriginX: 0,
+  dragOriginY: 0,
+  resizePointerId: null,
+  resizeStartX: 0,
+  resizeStartY: 0,
+  resizeOriginWidth: 0,
+  resizeOriginHeight: 0,
+  placed: false
+};
+
+const clampDemoWindowSize = (width, height) => {
+  const margin = 12;
+  const maxWidthByViewport = Math.max(demoWindowState.minWidth, window.innerWidth - margin * 2);
+  const maxHeightByViewport = Math.max(demoWindowState.minHeight, window.innerHeight - margin * 2);
+  if (!DEMO_COMPACT_WINDOW) {
+    return {
+      width: Math.min(maxWidthByViewport, Math.max(demoWindowState.minWidth, width)),
+      height: Math.min(maxHeightByViewport, Math.max(demoWindowState.minHeight, height))
+    };
+  }
+  const headerHeight = demoHeader?.offsetHeight || 28;
+  const maxByHeight = Math.max(
+    demoWindowState.minWidth,
+    ((maxHeightByViewport - headerHeight) * 16) / 9
+  );
+  const maxWidth = Math.max(
+    demoWindowState.minWidth,
+    Math.min(demoWindowState.maxWidth, maxWidthByViewport, maxByHeight)
+  );
+  const clampedWidth = Math.min(maxWidth, Math.max(demoWindowState.minWidth, width));
+  const computedHeight = headerHeight + (clampedWidth * 9) / 16;
+  return {
+    width: clampedWidth,
+    height: Math.min(maxHeightByViewport, Math.max(demoWindowState.minHeight, computedHeight))
+  };
+};
+
+const clampDemoWindowPosition = (x, y, width, height) => {
+  const margin = 12;
+  const maxX = Math.max(margin, window.innerWidth - width - margin);
+  const maxY = Math.max(margin, window.innerHeight - height - margin);
+  return {
+    x: Math.min(maxX, Math.max(margin, x)),
+    y: Math.min(maxY, Math.max(margin, y))
+  };
+};
+
+const persistDemoWindowRect = () => {
+  if (isMobileCallMode) {
+    return;
+  }
+  writeStorage(STORAGE_KEYS.demoWindowX, String(Math.round(demoWindowState.x ?? 0)));
+  writeStorage(STORAGE_KEYS.demoWindowY, String(Math.round(demoWindowState.y ?? 0)));
+  writeStorage(STORAGE_KEYS.demoWindowW, String(Math.round(demoWindowState.width ?? 0)));
+  writeStorage(STORAGE_KEYS.demoWindowH, String(Math.round(demoWindowState.height ?? 0)));
+};
+
+const applyDemoWindowRect = () => {
+  if (!demoModalContent || isMobileCallMode) {
+    return;
+  }
+  if (demoWindowState.width === null || demoWindowState.height === null) {
+    const rect = demoModalContent.getBoundingClientRect();
+    demoWindowState.width = Math.max(demoWindowState.minWidth, rect.width || 320);
+    demoWindowState.height = Math.max(demoWindowState.minHeight, rect.height || 208);
+  }
+  const size = clampDemoWindowSize(demoWindowState.width, demoWindowState.height);
+  demoWindowState.width = size.width;
+  demoWindowState.height = size.height;
+  if (demoWindowState.x === null || demoWindowState.y === null) {
+    demoWindowState.x = Math.max(12, window.innerWidth - demoWindowState.width - 12);
+    demoWindowState.y = Math.max(12, window.innerHeight - demoWindowState.height - 12);
+  }
+  const pos = clampDemoWindowPosition(
+    demoWindowState.x,
+    demoWindowState.y,
+    demoWindowState.width,
+    demoWindowState.height
+  );
+  demoWindowState.x = pos.x;
+  demoWindowState.y = pos.y;
+  demoModalContent.style.right = "auto";
+  demoModalContent.style.left = "0";
+  demoModalContent.style.top = "0";
+  demoModalContent.style.width = `${Math.round(demoWindowState.width)}px`;
+  demoModalContent.style.height = `${Math.round(demoWindowState.height)}px`;
+  demoModalContent.style.transform = `translate3d(${Math.round(demoWindowState.x)}px, ${Math.round(demoWindowState.y)}px, 0)`;
+  persistDemoWindowRect();
+};
+
+export const restoreDemoWindowRect = () => {
+  if (isMobileCallMode) {
+    demoWindowState.placed = false;
+    return;
+  }
+  const x = parseStoredNumber(readStorage(STORAGE_KEYS.demoWindowX));
+  const y = parseStoredNumber(readStorage(STORAGE_KEYS.demoWindowY));
+  const w = parseStoredNumber(readStorage(STORAGE_KEYS.demoWindowW));
+  const h = parseStoredNumber(readStorage(STORAGE_KEYS.demoWindowH));
+  if (w !== null) {
+    demoWindowState.width = w;
+  }
+  if (h !== null) {
+    demoWindowState.height = h;
+  }
+  if (x !== null && y !== null) {
+    demoWindowState.x = x;
+    demoWindowState.y = y;
+    demoWindowState.placed = true;
+  } else {
+    demoWindowState.placed = false;
+  }
+};
+
+const placeDemoWindowDefault = () => {
+  if (!demoModalContent || isMobileCallMode) {
+    return;
+  }
+  const rect = demoModalContent.getBoundingClientRect();
+  const width = rect.width || demoWindowState.width || 320;
+  const height = rect.height || demoWindowState.height || 208;
+  demoWindowState.width = width;
+  demoWindowState.height = height;
+  demoWindowState.x = Math.max(12, window.innerWidth - width - 12);
+  demoWindowState.y = Math.max(12, window.innerHeight - height - 12);
+  demoWindowState.placed = true;
+  applyDemoWindowRect();
+};
+
+const onDemoHeaderPointerDown = (event) => {
+  if (!demoHeader || !demoModalContent || isMobileCallMode) {
+    return;
+  }
+  const target = event.target;
+  if (target instanceof HTMLElement && target.closest("button, input, select, textarea, a")) {
+    return;
+  }
+  demoWindowState.dragPointerId = event.pointerId;
+  demoWindowState.dragStartX = event.clientX;
+  demoWindowState.dragStartY = event.clientY;
+  demoWindowState.dragOriginX = demoWindowState.x ?? demoModalContent.getBoundingClientRect().left;
+  demoWindowState.dragOriginY = demoWindowState.y ?? demoModalContent.getBoundingClientRect().top;
+  demoModalContent.classList.add("is-dragging");
+  demoHeader.setPointerCapture(event.pointerId);
+  event.preventDefault();
+};
+
+const onDemoHeaderPointerMove = (event) => {
+  if (
+    !demoHeader ||
+    !demoModalContent ||
+    demoWindowState.dragPointerId !== event.pointerId ||
+    isMobileCallMode
+  ) {
+    return;
+  }
+  const dx = event.clientX - demoWindowState.dragStartX;
+  const dy = event.clientY - demoWindowState.dragStartY;
+  demoWindowState.x = demoWindowState.dragOriginX + dx;
+  demoWindowState.y = demoWindowState.dragOriginY + dy;
+  applyDemoWindowRect();
+  event.preventDefault();
+};
+
+const onDemoHeaderPointerUp = (event) => {
+  if (!demoHeader || !demoModalContent || demoWindowState.dragPointerId !== event.pointerId) {
+    return;
+  }
+  if (demoHeader.hasPointerCapture(event.pointerId)) {
+    demoHeader.releasePointerCapture(event.pointerId);
+  }
+  demoWindowState.dragPointerId = null;
+  demoModalContent.classList.remove("is-dragging");
+};
+
+const onDemoResizePointerDown = (event) => {
+  if (!demoResizeHandle || !demoModalContent || isMobileCallMode) {
+    return;
+  }
+  demoWindowState.resizePointerId = event.pointerId;
+  demoWindowState.resizeStartX = event.clientX;
+  demoWindowState.resizeStartY = event.clientY;
+  const rect = demoModalContent.getBoundingClientRect();
+  demoWindowState.resizeOriginWidth = rect.width;
+  demoWindowState.resizeOriginHeight = rect.height;
+  demoWindowState.width = rect.width;
+  demoWindowState.height = rect.height;
+  demoModalContent.classList.add("is-resizing");
+  demoResizeHandle.setPointerCapture(event.pointerId);
+  event.preventDefault();
+};
+
+const onDemoResizePointerMove = (event) => {
+  if (
+    !demoResizeHandle ||
+    !demoModalContent ||
+    demoWindowState.resizePointerId !== event.pointerId ||
+    isMobileCallMode
+  ) {
+    return;
+  }
+  const dx = event.clientX - demoWindowState.resizeStartX;
+  if (DEMO_COMPACT_WINDOW) {
+    const dy = event.clientY - demoWindowState.resizeStartY;
+    const dyToWidth = (dy * 16) / 9;
+    const delta = Math.abs(dx) >= Math.abs(dyToWidth) ? dx : dyToWidth;
+    demoWindowState.width = demoWindowState.resizeOriginWidth + delta;
+  } else {
+    const dy = event.clientY - demoWindowState.resizeStartY;
+    demoWindowState.width = demoWindowState.resizeOriginWidth + dx;
+    demoWindowState.height = demoWindowState.resizeOriginHeight + dy;
+  }
+  applyDemoWindowRect();
+  if (demoState.viewMode === "fit" && !DEMO_COMPACT_WINDOW) {
+    fitDemoToViewport({ persistMode: false });
+  }
+  event.preventDefault();
+};
+
+const onDemoResizePointerUp = (event) => {
+  if (!demoResizeHandle || !demoModalContent || demoWindowState.resizePointerId !== event.pointerId) {
+    return;
+  }
+  if (demoResizeHandle.hasPointerCapture(event.pointerId)) {
+    demoResizeHandle.releasePointerCapture(event.pointerId);
+  }
+  demoWindowState.resizePointerId = null;
+  demoModalContent.classList.remove("is-resizing");
+};
+
+const bindDemoWindowControls = () => {
+  if (!demoModalContent || !demoHeader || !demoResizeHandle || isMobileCallMode) {
+    return;
+  }
+  demoHeader.addEventListener("pointerdown", onDemoHeaderPointerDown);
+  demoHeader.addEventListener("pointermove", onDemoHeaderPointerMove);
+  demoHeader.addEventListener("pointerup", onDemoHeaderPointerUp);
+  demoHeader.addEventListener("pointercancel", onDemoHeaderPointerUp);
+  demoResizeHandle.addEventListener("pointerdown", onDemoResizePointerDown);
+  demoResizeHandle.addEventListener("pointermove", onDemoResizePointerMove);
+  demoResizeHandle.addEventListener("pointerup", onDemoResizePointerUp);
+  demoResizeHandle.addEventListener("pointercancel", onDemoResizePointerUp);
+};
+
+const bindDemoFullscreenGesture = () => {
+  if (!demoHeader) {
+    return;
+  }
+  demoHeader.addEventListener("dblclick", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("button, input, select, textarea, a")) {
+      return;
+    }
+    toggleDemoFullscreen();
+  });
+};
+
+const openDemoModal = async () => {
+  if (!demoModal || !demoStage || !demoVideo || !demoLoader) {
+    log("Демо окно недоступно");
+    return;
+  }
+  demoModal.classList.add("open");
+  demoModal.setAttribute("aria-hidden", "false");
+  updateModalOverlayState();
+  if (!isMobileCallMode) {
+    if (!demoWindowState.placed) {
+      placeDemoWindowDefault();
+    } else {
+      applyDemoWindowRect();
+    }
+  }
+  demoStage.focus();
+  updateDemoSelect();
+  const storedSource = readStorage(STORAGE_KEYS.demoSourceId);
+  if (!DEMO_COMPACT_WINDOW) {
+    const storedZoom = Number(readStorage(STORAGE_KEYS.demoZoom));
+    const storedX = Number(readStorage(STORAGE_KEYS.demoOffsetX));
+    const storedY = Number(readStorage(STORAGE_KEYS.demoOffsetY));
+    const storedMode = readStorage(STORAGE_KEYS.demoViewMode);
+    if (!Number.isNaN(storedZoom) && storedZoom > 0) {
+      demoState.scale = storedZoom;
+    }
+    if (!Number.isNaN(storedX)) {
+      demoState.offsetX = storedX;
+    }
+    if (!Number.isNaN(storedY)) {
+      demoState.offsetY = storedY;
+    }
+    if (storedMode === "fit" || storedMode === "manual") {
+      setDemoViewMode(storedMode, { persist: false });
+    } else {
+      setDemoViewMode("fit", { persist: false });
+    }
+    if (demoState.viewMode !== "fit") {
+      updateDemoTransform();
+    }
+  } else {
+    demoState.scale = 1;
+    demoState.offsetX = 0;
+    demoState.offsetY = 0;
+    setDemoViewMode("fit", { persist: false });
+    updateDemoTransform();
+  }
+  const fallbackSource =
+    (storedSource && demoSources.has(storedSource) && storedSource) ||
+    demoSources.keys().next().value;
+  if (fallbackSource) {
+    setDemoImageSource(fallbackSource);
+  } else {
+    showDemoPlaceholder();
+  }
+  updateDemoControlState();
+};
+
+const closeDemoModal = () => {
+  if (!demoModal) {
+    return;
+  }
+  if (isDemoFullscreen()) {
+    document.exitFullscreen().catch(() => {});
+  }
+  demoState.dragging = false;
+  demoState.stagePointerId = null;
+  demoStage?.classList.remove("is-dragging");
+  demoModalContent?.classList.remove("is-dragging");
+  demoModalContent?.classList.remove("is-resizing");
+  demoModal.classList.remove("open");
+  demoModal.setAttribute("aria-hidden", "true");
+  updateModalOverlayState();
 };

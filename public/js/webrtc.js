@@ -7,6 +7,50 @@ import { state, offerRetryTimers, OFFER_RETRY_DELAY_MS } from "./state.js";
 import { sendMessage } from "./ws.js";
 
 /**
+ * Tune encoding parameters for a video sender.
+ * @param {RTCRtpSender} sender - Sender to tune.
+ * @param {"camera"|"screen"} kind - Video source kind.
+ * @returns {void}
+ */
+export const tuneVideoSender = (sender, kind) => {
+  if (!sender) {
+    return;
+  }
+  const targetBitrate = kind === "screen" ? 10000000 : 2500000;
+  const targetFps = kind === "screen" ? 60 : 30;
+  try {
+    const params = sender.getParameters?.() || {};
+    if (!params.encodings || !params.encodings.length) {
+      params.encodings = [{}];
+    }
+    params.degradationPreference = kind === "screen" ? "maintain-resolution" : "balanced";
+    params.encodings = params.encodings.map((encoding) => ({
+      ...encoding,
+      maxBitrate: targetBitrate,
+      maxFramerate: targetFps,
+      scaleResolutionDownBy: 1
+    }));
+    sender.setParameters?.(params).catch(() => {});
+  } catch {}
+};
+
+/**
+ * Attach a local video source track to a peer connection.
+ * @param {object} source - Local video source.
+ * @param {string} peerId - Peer id.
+ * @param {object} peer - Peer wrapper.
+ * @returns {void}
+ */
+export const attachLocalSourceToPeer = (source, peerId, peer) => {
+  if (!source || !peer || source.senders.has(peerId)) {
+    return;
+  }
+  const sender = peer.pc.addTrack(source.track, source.stream);
+  source.senders.set(peerId, sender);
+  tuneVideoSender(sender, source.kind);
+};
+
+/**
  * Cancel a pending offer retry timer for a peer.
  * @param {string} peerId - Peer identifier.
  * @returns {void}
