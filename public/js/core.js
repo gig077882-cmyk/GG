@@ -19,9 +19,12 @@ import {
 import { readStorage, writeStorage } from "./storage.js";
 import {
   state, isMobileCallMode, DEMO_COMPACT_WINDOW,
-  STORAGE_KEYS, DEFAULT_ICE_SERVERS, OFFER_RETRY_DELAY_MS,
-  GLOBAL_CHAT_RETRY_MS, offerRetryTimers
+  STORAGE_KEYS, DEFAULT_ICE_SERVERS,
+  GLOBAL_CHAT_RETRY_MS
 } from "./state.js";
+import {
+  clearOfferRetry, clearAllOfferRetries, shouldCreateOffer, sendOfferToPeer, handleSignal
+} from "./webrtc.js";
 import {
   clampRgb, mixChannel, rgbToHex, parseThemeColor,
   isTypingTarget,
@@ -51,29 +54,6 @@ import { renderParticipants, updateLocalParticipant } from "./participants.js";
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
 }
-
-/**
- * Cancel a pending offer retry timer for a peer.
- * @param {string} peerId - Peer identifier.
- * @returns {void}
- */
-const clearOfferRetry = (peerId) => {
-  const timer = offerRetryTimers.get(peerId);
-  if (!timer) {
-    return;
-  }
-  clearTimeout(timer);
-  offerRetryTimers.delete(peerId);
-};
-
-/**
- * Cancel all pending offer retry timers.
- * @returns {void}
- */
-const clearAllOfferRetries = () => {
-  offerRetryTimers.forEach((timer) => clearTimeout(timer));
-  offerRetryTimers.clear();
-};
 
 /**
  * Store the current room id/key in the URL hash and update the UI.
@@ -2422,61 +2402,6 @@ const cleanupConnections = () => {
   showDemoPlaceholder();
 };
 
-const shouldCreateOffer = (peerId) => {
-  if (!state.clientId) {
-    return false;
-  }
-  return state.clientId > peerId;
-};
-
-const sendOfferToPeer = async (peerId) => {
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-    clearOfferRetry(peerId);
-    return;
-  }
-  const peer = state.peers.get(peerId);
-  if (!peer) {
-    clearOfferRetry(peerId);
-    return;
-  }
-  const pc = peer.pc;
-  if (peer.makingOffer) {
-    return;
-  }
-  if (pc.signalingState !== "stable") {
-    if (!offerRetryTimers.has(peerId)) {
-      const timer = setTimeout(() => {
-        offerRetryTimers.delete(peerId);
-        sendOfferToPeer(peerId).catch(() => {});
-      }, OFFER_RETRY_DELAY_MS);
-      offerRetryTimers.set(peerId, timer);
-    }
-    return;
-  }
-  clearOfferRetry(peerId);
-  peer.makingOffer = true;
-  try {
-    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pc.setLocalDescription(offer);
-    sendMessage({
-      type: "signal",
-      to: peerId,
-      data: { type: "offer", offer }
-    });
-  } finally {
-    peer.makingOffer = false;
-    if (pc.signalingState !== "stable") {
-      if (!offerRetryTimers.has(peerId)) {
-        const timer = setTimeout(() => {
-          offerRetryTimers.delete(peerId);
-          sendOfferToPeer(peerId).catch(() => {});
-        }, OFFER_RETRY_DELAY_MS);
-        offerRetryTimers.set(peerId, timer);
-      }
-    }
-  }
-};
-
 const ensurePeer = (peerId) => {
   if (state.peers.has(peerId)) {
     return state.peers.get(peerId);
@@ -2566,39 +2491,6 @@ const ensurePeer = (peerId) => {
   };
   state.peers.set(peerId, { pc, pendingCandidates: [], makingOffer: false });
   return state.peers.get(peerId);
-};
-
-const handleSignal = async (from, data) => {
-  const peer = ensurePeer(from);
-  const pc = peer.pc;
-  if (data.type === "offer") {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    sendMessage({ type: "signal", to: from, data: { type: "answer", answer } });
-    if (peer.pendingCandidates.length) {
-      const pending = [...peer.pendingCandidates];
-      peer.pendingCandidates.length = 0;
-      for (const candidate of pending) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    }
-  } else if (data.type === "answer") {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    if (peer.pendingCandidates.length) {
-      const pending = [...peer.pendingCandidates];
-      peer.pendingCandidates.length = 0;
-      for (const candidate of pending) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    }
-  } else if (data.type === "ice" && data.candidate) {
-    if (pc.remoteDescription) {
-      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-    } else {
-      peer.pendingCandidates.push(data.candidate);
-    }
-  }
 };
 
 const toggleMute = () => {
@@ -3095,6 +2987,7 @@ const connectToRoom = async (roomId, key) => {
       return;
     }
     if (msg.type === "signal") {
+      ensurePeer(msg.from);
       await handleSignal(msg.from, msg.data);
     }
   };
