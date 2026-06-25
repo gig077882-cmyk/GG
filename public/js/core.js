@@ -130,6 +130,10 @@ if (isMobileCallMode) {
   state.chatHidden = false;
 }
 
+// ============================================================
+// Chat and global chat UI
+// ============================================================
+
 const createChatMessageElement = ({ type, name, text, ts, from, file }) => {
   const line = document.createElement("div");
   line.className = "chat-message";
@@ -413,6 +417,10 @@ const applyStoredSettings = () => {
   }
 };
 
+// ============================================================
+// Theme and appearance
+// ============================================================
+
 const openThemeModal = () => {
   if (!themeModal || !themeColorInput || !themeTextInput || !themeError) {
     log("Окно темы недоступно");
@@ -508,6 +516,10 @@ const cameraPreviewState = {
   maxWidth: 760,
   placed: false
 };
+
+// ============================================================
+// Camera preview positioning
+// ============================================================
 
 const clampCameraPreviewPosition = (x, y) => {
   if (!cameraPreview) {
@@ -1721,6 +1733,10 @@ const requestCameraStream = async (facing = state.cameraFacing, deviceId = "") =
   }
 };
 
+// ============================================================
+// Local video sources (camera / screen)
+// ============================================================
+
 const startCamera = async (options = {}) => {
   const { deviceId = "" } = options;
   if (!window.isSecureContext) {
@@ -2350,6 +2366,10 @@ const sendActivity = (active) => {
   sendMessage({ type: "activity", active });
 };
 
+// ============================================================
+// Participant state
+// ============================================================
+
 const updateLocalParticipant = (patch) => {
   const me = state.participants.get(state.clientId);
   if (me) {
@@ -2951,6 +2971,10 @@ const toggleNoiseSuppression = async () => {
   await toggleNeuralNoiseSuppression();
 };
 
+// ============================================================
+// Room lifecycle
+// ============================================================
+
 const leaveRoom = () => {
   if (state.ws) {
     try {
@@ -3087,6 +3111,10 @@ const refreshCommandSuggestions = (options = {}) => {
   openCommandMenu();
   return matches;
 };
+
+// ============================================================
+// Command parser and handlers
+// ============================================================
 
 const handleCommand = async (input) => {
   const parts = String(input || "").trim().split(/\s+/);
@@ -3358,6 +3386,10 @@ const handleCommand = async (input) => {
   }
   log(`Unknown command: ${cmd}`);
 };
+
+// ============================================================
+// Connection bootstrap
+// ============================================================
 
 const connectToRoom = async (roomId, key) => {
   if (state.ws) {
