@@ -54,6 +54,16 @@ import {
 } from "./chat.js";
 import { normalizeAvatarShape } from "./theme.js";
 import { renderParticipants, updateLocalParticipant } from "./participants.js";
+import {
+  demoSources, demoState, getDemoSourceIds, setDemoViewMode, updateDemoStatus,
+  updateDemoControlState, updateDemoTransform, setDemoScale, nudgeDemo,
+  showDemoLoupe, getLocalOwnerId, getLocalVideoSourcesByKind,
+  getLocalVideoSourceCount, allocateLocalVideoSourceId, composeLocalVideoLabel,
+  composeRemoteVideoLabel, removeDemoSourcesByOwner, showDemoPlaceholder,
+  updateDemoSelect, removeDemoSource, upsertDemoSource, fitDemoToViewport,
+  resetDemoView, selectDemoSourceByStep, isDemoFullscreen, toggleDemoFullscreen,
+  setDemoImageSource, announceDemoStart, announceDemoStop
+} from "./demo.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
@@ -170,7 +180,6 @@ const setStatus = (text) => {
   statusEl.textContent = text;
 };
 
-const demoSources = new Map();
 
 const setTextColor = (r, g, b) => {
   const red = clampRgb(r);
@@ -276,23 +285,6 @@ const applyThemeFromInput = () => {
   closeThemeModal();
 };
 
-const demoState = {
-  scale: 1,
-  minScale: 0.5,
-  maxScale: 4,
-  step: 0.1,
-  offsetX: 0,
-  offsetY: 0,
-  dragging: false,
-  dragStartX: 0,
-  dragStartY: 0,
-  originX: 0,
-  originY: 0,
-  loupeTimer: null,
-  viewMode: "fit",
-  stagePointerId: null,
-  sourceId: null
-};
 
 const demoWindowState = {
   x: null,
@@ -848,358 +840,6 @@ const bindDemoFullscreenGesture = () => {
   });
 };
 
-const formatZoomLabel = (value) => `${Math.round(value * 100)}%`;
-
-const getDemoSourceIds = () => Array.from(demoSources.keys());
-
-const setDemoViewMode = (mode, options = {}) => {
-  const { persist = true } = options;
-  demoState.viewMode = mode === "fit" ? "fit" : "manual";
-  if (persist) {
-    writeStorage(STORAGE_KEYS.demoViewMode, demoState.viewMode);
-  }
-  if (demoFitButton) {
-    demoFitButton.classList.toggle("is-active", demoState.viewMode === "fit");
-  }
-};
-
-const updateDemoStatus = () => {
-  if (!demoStatus) {
-    return;
-  }
-  const source = demoState.sourceId ? demoSources.get(demoState.sourceId) : null;
-  if (!source) {
-    demoStatus.textContent = "Нет активной демонстрации экрана";
-    return;
-  }
-  const modeLabel = demoState.viewMode === "fit" ? "по размеру" : "ручной";
-  const shareLabel = source.isLocal ? "ваш показ" : "просмотр";
-  demoStatus.textContent = `${source.label} | ${shareLabel} | ${modeLabel}`;
-};
-
-const updateDemoControlState = () => {
-  const ids = getDemoSourceIds();
-  const hasSources = ids.length > 0;
-  const multipleSources = ids.length > 1;
-  if (demoStage) {
-    demoStage.classList.toggle("is-empty", !hasSources);
-  }
-  if (demoSourcePrevButton) {
-    demoSourcePrevButton.disabled = !multipleSources;
-  }
-  if (demoSourceNextButton) {
-    demoSourceNextButton.disabled = !multipleSources;
-  }
-  if (demoZoomOutButton) {
-    demoZoomOutButton.disabled = !hasSources;
-  }
-  if (demoZoomInButton) {
-    demoZoomInButton.disabled = !hasSources;
-  }
-  if (demoFitButton) {
-    demoFitButton.disabled = !hasSources;
-    demoFitButton.classList.toggle("is-active", demoState.viewMode === "fit");
-  }
-  if (demoResetViewButton) {
-    demoResetViewButton.disabled = !hasSources;
-  }
-  if (demoFullscreenButton) {
-    demoFullscreenButton.disabled = !hasSources;
-    const activeFullscreen = isDemoFullscreen();
-    demoFullscreenButton.textContent = activeFullscreen ? "Выйти из полноэкранного" : "На весь экран";
-  }
-  if (demoShareToggleButton) {
-    demoShareToggleButton.disabled = !state.ws || state.ws.readyState !== WebSocket.OPEN;
-    const screenCount = getLocalVideoSourceCount("screen");
-    demoShareToggleButton.textContent = screenCount > 0 ? "Stop shares (" + screenCount + ")" : "Start share";
-  }
-  updateDemoStatus();
-};
-
-const updateDemoTransform = () => {
-  if (!demoVideo) {
-    return;
-  }
-  if (DEMO_COMPACT_WINDOW) {
-    demoVideo.style.transform = "";
-    demoState.scale = 1;
-    demoState.offsetX = 0;
-    demoState.offsetY = 0;
-    setDemoViewMode("fit");
-  } else {
-    demoVideo.style.transform = `translate(${demoState.offsetX}px, ${demoState.offsetY}px) scale(${demoState.scale})`;
-    if (demoZoomIndicator) {
-      demoZoomIndicator.textContent = formatZoomLabel(demoState.scale);
-    }
-    writeStorage(STORAGE_KEYS.demoZoom, String(demoState.scale));
-    writeStorage(STORAGE_KEYS.demoOffsetX, String(demoState.offsetX));
-    writeStorage(STORAGE_KEYS.demoOffsetY, String(demoState.offsetY));
-    writeStorage(STORAGE_KEYS.demoViewMode, demoState.viewMode);
-  }
-  updateDemoStatus();
-};
-
-const setDemoScale = (nextScale, options = {}) => {
-  if (DEMO_COMPACT_WINDOW) {
-    return;
-  }
-  const { fromUser = true } = options;
-  const clamped = Math.max(demoState.minScale, Math.min(demoState.maxScale, nextScale));
-  const rounded = Math.round(clamped * 10) / 10;
-  demoState.scale = rounded;
-  if (fromUser) {
-    setDemoViewMode("manual");
-  }
-  updateDemoTransform();
-};
-
-const nudgeDemo = (dx, dy) => {
-  if (DEMO_COMPACT_WINDOW) {
-    return;
-  }
-  demoState.offsetX += dx;
-  demoState.offsetY += dy;
-  setDemoViewMode("manual");
-  updateDemoTransform();
-};
-
-const demoCanvas = document.createElement("canvas");
-const demoCanvasCtx = demoCanvas.getContext("2d");
-
-const showDemoLoupe = (clientX, clientY) => {
-  if (!demoLoupe || !demoStage || !demoVideo || !demoCanvasCtx) {
-    return;
-  }
-  if (demoVideo.readyState < 2) {
-    return;
-  }
-  const rect = demoStage.getBoundingClientRect();
-  const loupeSize = 140;
-  const x = Math.min(rect.width - loupeSize, Math.max(0, clientX - rect.left - loupeSize / 2));
-  const y = Math.min(rect.height - loupeSize, Math.max(0, clientY - rect.top - loupeSize / 2));
-  const localX = clientX - rect.left;
-  const localY = clientY - rect.top;
-  const loupeScale = Math.min(demoState.scale * 1.6, demoState.maxScale * 1.6);
-  demoCanvas.width = demoVideo.videoWidth;
-  demoCanvas.height = demoVideo.videoHeight;
-  demoCanvasCtx.drawImage(demoVideo, 0, 0, demoCanvas.width, demoCanvas.height);
-  demoLoupe.style.left = `${x}px`;
-  demoLoupe.style.top = `${y}px`;
-  demoLoupe.style.backgroundImage = `url("${demoCanvas.toDataURL("image/png")}")`;
-  demoLoupe.style.backgroundSize = `${demoVideo.videoWidth * loupeScale}px ${demoVideo.videoHeight * loupeScale}px`;
-  demoLoupe.style.backgroundPosition = `${-localX * loupeScale + loupeSize / 2}px ${-localY * loupeScale + loupeSize / 2}px`;
-  demoLoupe.classList.add("active");
-  if (demoState.loupeTimer) {
-    clearTimeout(demoState.loupeTimer);
-  }
-  demoState.loupeTimer = setTimeout(() => {
-    demoLoupe.classList.remove("active");
-  }, 600);
-};
-
-const getLocalOwnerId = () => state.clientId || "local";
-
-const getLocalVideoSourcesByKind = (kind) =>
-  Array.from(state.localVideoSources.values()).filter((source) => source.kind === kind);
-
-const getLocalVideoSourceCount = (kind) => getLocalVideoSourcesByKind(kind).length;
-
-const allocateLocalVideoSourceId = (kind) => {
-  state.videoSourceSeq += 1;
-  return `${getLocalOwnerId()}:${kind}:${state.videoSourceSeq}`;
-};
-
-const composeLocalVideoLabel = (kind, index) =>
-  `${state.name} (you) - ${kind === "screen" ? "screen" : "camera"} ${index}`;
-
-const composeRemoteVideoLabel = (name, kind, trackLabel = "") => {
-  const base = String(name || "Guest");
-  const trackText = String(trackLabel || "").trim();
-  if (trackText) {
-    return `${base} - ${trackText}`;
-  }
-  return `${base} - ${kind === "screen" ? "screen" : "camera"}`;
-};
-
-const removeDemoSourcesByOwner = (ownerId, options = {}) => {
-  const ids = [];
-  demoSources.forEach((source, id) => {
-    if (source?.ownerId === ownerId) {
-      ids.push(id);
-    }
-  });
-  ids.forEach((id) => removeDemoSource(id, options));
-};
-
-const showDemoPlaceholder = (text = "Нет активной демонстрации экрана") => {
-  if (demoVideo) {
-    demoVideo.srcObject = null;
-  }
-  if (demoState.sourceId && !demoSources.has(demoState.sourceId)) {
-    demoState.sourceId = null;
-  }
-  if (!demoState.sourceId) {
-    writeStorage(STORAGE_KEYS.demoSourceId, "");
-  }
-  if (!demoLoader) {
-    updateDemoControlState();
-    return;
-  }
-  demoLoader.classList.remove("hidden");
-  demoLoader.innerHTML = `<div>${text}</div>`;
-  updateDemoControlState();
-};
-
-const updateDemoSelect = () => {
-  if (!demoUserSelect) {
-    updateDemoControlState();
-    return;
-  }
-  const activeId = demoState.sourceId;
-  demoUserSelect.innerHTML = "";
-  if (demoSources.size === 0) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "Нет источников";
-    demoUserSelect.appendChild(option);
-    demoUserSelect.disabled = true;
-    updateDemoControlState();
-    return;
-  }
-  demoUserSelect.disabled = false;
-  demoSources.forEach((source, id) => {
-    const option = document.createElement("option");
-    option.value = id;
-    option.textContent = source.label;
-    demoUserSelect.appendChild(option);
-  });
-  if (activeId && demoSources.has(activeId)) {
-    demoUserSelect.value = activeId;
-  } else {
-    demoUserSelect.value = demoSources.keys().next().value;
-  }
-  updateDemoControlState();
-};
-
-const announceDemoStart = (label) => {
-  appendChatMessage({
-    name: "Система",
-    text: `${label} начал демонстрацию`,
-    ts: Date.now()
-  });
-};
-
-const announceDemoStop = (label) => {
-  appendChatMessage({
-    name: "Система",
-    text: `${label} завершил демонстрацию`,
-    ts: Date.now()
-  });
-};
-
-const removeDemoSource = (sourceId, options = {}) => {
-  const { announce = false } = options;
-  if (!demoSources.has(sourceId)) {
-    return;
-  }
-  const source = demoSources.get(sourceId);
-  demoSources.delete(sourceId);
-  if (announce && source?.label) {
-    announceDemoStop(source.label);
-  }
-  updateDemoSelect();
-  if (demoState.sourceId !== sourceId) {
-    return;
-  }
-  demoState.sourceId = null;
-  const fallback = demoSources.keys().next().value;
-  if (fallback) {
-    setDemoImageSource(fallback);
-  } else {
-    showDemoPlaceholder();
-  }
-};
-
-const shouldAutoSelectDemoSource = (sourceId, autoSelect) => {
-  if (autoSelect === "always") {
-    return true;
-  }
-  if (autoSelect === "if-empty-or-current") {
-    return !demoState.sourceId || demoState.sourceId === sourceId;
-  }
-  if (autoSelect === "if-empty") {
-    return !demoState.sourceId;
-  }
-  if (autoSelect === "if-current") {
-    return demoState.sourceId === sourceId;
-  }
-  return !demoState.sourceId || demoState.sourceId === sourceId;
-};
-
-const upsertDemoSource = (sourceId, payload, options = {}) => {
-  const { autoSelect = "none", announce = false } = options;
-  const prev = demoSources.get(sourceId);
-  const next = { ...prev, ...payload };
-  demoSources.set(sourceId, next);
-  updateDemoSelect();
-  if (announce && !prev) {
-    announceDemoStart(next.label || "Гость");
-  }
-  if (shouldAutoSelectDemoSource(sourceId, autoSelect)) {
-    setDemoImageSource(sourceId);
-  }
-};
-
-const fitDemoToViewport = (options = {}) => {
-  const { persistMode = true } = options;
-  if (!demoStage || !demoVideo || demoVideo.videoWidth <= 0 || demoVideo.videoHeight <= 0) {
-    return;
-  }
-  const rect = demoStage.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return;
-  }
-  const scale = Math.min(rect.width / demoVideo.videoWidth, rect.height / demoVideo.videoHeight);
-  const rounded = Math.round(scale * 100) / 100;
-  demoState.scale = Math.max(demoState.minScale, Math.min(demoState.maxScale, rounded));
-  demoState.offsetX = 0;
-  demoState.offsetY = 0;
-  setDemoViewMode("fit", { persist: persistMode });
-  updateDemoTransform();
-};
-
-const resetDemoView = () => {
-  demoState.scale = 1;
-  demoState.offsetX = 0;
-  demoState.offsetY = 0;
-  setDemoViewMode("manual");
-  updateDemoTransform();
-};
-
-const selectDemoSourceByStep = (delta) => {
-  const ids = getDemoSourceIds();
-  if (ids.length <= 1) {
-    return;
-  }
-  const currentIndex = Math.max(0, ids.indexOf(demoState.sourceId));
-  const nextIndex = (currentIndex + delta + ids.length) % ids.length;
-  const nextId = ids[nextIndex];
-  setDemoImageSource(nextId);
-  demoStage?.focus();
-};
-
-const isDemoFullscreen = () => {
-  const element = document.fullscreenElement;
-  if (!element) {
-    return false;
-  }
-  return (
-    element === demoModalContent ||
-    element === demoStage ||
-    Boolean(demoModalContent && demoModalContent.contains(element))
-  );
-};
-
 const isCameraPreviewFullscreen = () => {
   const element = document.fullscreenElement;
   if (!element) {
@@ -1212,20 +852,6 @@ const isCameraPreviewFullscreen = () => {
   );
 };
 
-const toggleDemoFullscreen = async () => {
-  const target = demoModalContent || demoStage;
-  if (!target) {
-    return;
-  }
-  try {
-    if (isDemoFullscreen()) {
-      await document.exitFullscreen();
-    } else {
-      await target.requestFullscreen();
-    }
-  } catch {}
-  updateDemoControlState();
-};
 
 const toggleCameraPreviewFullscreen = async () => {
   if (!cameraPreview || cameraPreview.classList.contains("hidden")) {
@@ -1240,45 +866,6 @@ const toggleCameraPreviewFullscreen = async () => {
   } catch {}
 };
 
-const setDemoImageSource = (sourceId) => {
-  if (!demoVideo) {
-    return;
-  }
-  const source = demoSources.get(sourceId);
-  if (!source?.stream) {
-    demoState.sourceId = null;
-    writeStorage(STORAGE_KEYS.demoSourceId, "");
-    showDemoPlaceholder();
-    return;
-  }
-  demoState.sourceId = sourceId;
-  writeStorage(STORAGE_KEYS.demoSourceId, sourceId);
-  if (demoUserSelect) {
-    demoUserSelect.value = sourceId;
-  }
-  if (demoLoader) {
-    demoLoader.classList.remove("hidden");
-    const label = source.label ? String(source.label) : "источник";
-    demoLoader.innerHTML = `<div class="demo-spinner"></div><div>Загрузка: ${label}</div>`;
-  }
-  demoVideo.onloadeddata = () => {
-    demoLoader?.classList.add("hidden");
-    if (DEMO_COMPACT_WINDOW) {
-      updateDemoTransform();
-    } else if (demoState.viewMode === "fit") {
-      fitDemoToViewport({ persistMode: false });
-    } else {
-      updateDemoTransform();
-    }
-    demoVideo.play().catch(() => {});
-    updateDemoControlState();
-  };
-  demoVideo.onerror = () => {
-    showDemoPlaceholder("Не удалось загрузить поток");
-  };
-  demoVideo.srcObject = source.stream;
-  updateDemoControlState();
-};
 
 const refreshPrimaryMediaStreams = () => {
   const cameraSources = getLocalVideoSourcesByKind("camera");
