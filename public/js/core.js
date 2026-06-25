@@ -399,8 +399,9 @@ const applyCameraPreviewPosition = () => {
   if (!cameraPreview) {
     return;
   }
-  cameraPreview.style.left = `${cameraPreviewState.x}px`;
-  cameraPreview.style.top = `${cameraPreviewState.y}px`;
+  cameraPreview.style.left = "0";
+  cameraPreview.style.top = "0";
+  cameraPreview.style.transform = `translate3d(${Math.round(cameraPreviewState.x)}px, ${Math.round(cameraPreviewState.y)}px, 0)`;
   if (isMobileCallMode) {
     return;
   }
@@ -688,10 +689,11 @@ const applyDemoWindowRect = () => {
   demoWindowState.x = pos.x;
   demoWindowState.y = pos.y;
   demoModalContent.style.right = "auto";
-  demoModalContent.style.left = `${Math.round(demoWindowState.x)}px`;
-  demoModalContent.style.top = `${Math.round(demoWindowState.y)}px`;
+  demoModalContent.style.left = "0";
+  demoModalContent.style.top = "0";
   demoModalContent.style.width = `${Math.round(demoWindowState.width)}px`;
   demoModalContent.style.height = `${Math.round(demoWindowState.height)}px`;
+  demoModalContent.style.transform = `translate3d(${Math.round(demoWindowState.x)}px, ${Math.round(demoWindowState.y)}px, 0)`;
   persistDemoWindowRect();
 };
 
