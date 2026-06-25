@@ -40,7 +40,7 @@ export const createChatMessageElement = ({ type, name, text, ts, from, file }) =
   timeEl.textContent = timeLabel;
   const authorEl = document.createElement("span");
   authorEl.className = "chat-message-author";
-  authorEl.textContent = displayName;
+  authorEl.textContent = `${displayName}: `;
   header.appendChild(timeEl);
   header.appendChild(authorEl);
   line.appendChild(header);
@@ -289,6 +289,24 @@ export const updateMobileChatControls = () => {
   if (globalChatSendButton) {
     globalChatSendButton.disabled = false;
   }
+};
+
+/**
+ * Send a text message to the room chat.
+ * @param {string} text - Message text.
+ * @returns {boolean} True if the message was sent.
+ */
+export const sendChatMessage = (text) => {
+  const value = String(text || "").trim();
+  if (!value) {
+    return false;
+  }
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    log("Сначала подключитесь к комнате");
+    return false;
+  }
+  sendMessage({ type: "chat", text: value });
+  return true;
 };
 
 /**

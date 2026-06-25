@@ -36,7 +36,7 @@ const ensureAudioOutput = (audio) => {
   }
 };
 
-const cleanupAudioOutput = (audioId) => {
+export const cleanupAudioOutput = (audioId) => {
   const output = state.remoteAudioOutputs.get(audioId);
   if (!output) {
     return;
@@ -46,7 +46,7 @@ const cleanupAudioOutput = (audioId) => {
   state.remoteAudioOutputs.delete(audioId);
 };
 
-const applyVolumeToElement = (audio, level) => {
+export const applyVolumeToElement = (audio, level) => {
   const safeLevel = clampVolume(level);
   const gainValue = safeLevel / 100;
   const output = ensureAudioOutput(audio);

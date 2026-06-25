@@ -70,14 +70,14 @@ import {
   stopLocalVideoSourcesByKind, refreshPrimaryMediaStreams, updateDemoButtonLabel,
   updateCameraButtonLabel, updateCameraSwitchButtonLabel, startCamera, stopCamera,
   switchCameraFacing, requestCameraStream, startScreenShare, stopScreenShare,
-  showCameraPreview, hideCameraPreview, updateCameraPreviewTransform,
-  bindCameraPreviewDrag, bindCameraPreviewFullscreen, cameraPreviewState,
-  buildCameraVideoConstraints, toggleCamera, toggleCameraPreviewFullscreen,
-  restoreCameraPreviewPosition, isCameraPreviewFullscreen
+  showCameraPreview, hideCameraPreview, bindCameraPreviewDrag,
+  bindCameraPreviewFullscreen, cameraPreviewState, buildCameraVideoConstraints,
+  toggleCamera, toggleCameraPreviewFullscreen, restoreCameraPreviewPosition,
+  isCameraPreviewFullscreen
 } from "./video.js";
 import {
   demoWindowState, clampDemoWindowSize, applyDemoWindowRect, placeDemoWindowDefault,
-  restoreDemoWindowRect, updateDemoWindowTransform, bindDemoWindowDrag, bindDemoWindowResize,
+  restoreDemoWindowRect,
   bindDemoWindowControls, bindDemoFullscreenGesture, openDemoModal, closeDemoModal
 } from "./demo.js";
 
@@ -825,7 +825,7 @@ const leaveRoom = () => {
 // ============================================================
 
 const handleCommand = async (input) => {
-  const parts = String(input || "").trim().split(/\s+/);
+  const parts = String(input || "").trim().replace(/^\/+/, "").split(/\s+/);
   const cmd = parts[0]?.toLowerCase();
   const args = parts.slice(1);
   if (!cmd) {

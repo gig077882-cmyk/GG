@@ -20,7 +20,7 @@ import {
   removeDemoSourcesByOwner, updateDemoControlState
 } from "./demo.js";
 
-const cameraPreviewState = {
+export const cameraPreviewState = {
   dragPointerId: null,
   dragStartX: 0,
   dragStartY: 0,
@@ -42,7 +42,7 @@ const cameraPreviewState = {
 // Camera preview positioning
 // ============================================================
 
-const clampCameraPreviewPosition = (x, y) => {
+export const clampCameraPreviewPosition = (x, y) => {
   if (!cameraPreview) {
     return { x, y };
   }
@@ -57,7 +57,7 @@ const clampCameraPreviewPosition = (x, y) => {
   };
 };
 
-const clampCameraPreviewWidth = (value) => {
+export const clampCameraPreviewWidth = (value) => {
   if (!cameraPreview) {
     return value;
   }
@@ -73,7 +73,7 @@ const clampCameraPreviewWidth = (value) => {
   return Math.min(boundedMax, Math.max(cameraPreviewState.minWidth, value));
 };
 
-const applyCameraPreviewSize = () => {
+export const applyCameraPreviewSize = () => {
   if (!cameraPreview) {
     return;
   }
@@ -84,7 +84,7 @@ const applyCameraPreviewSize = () => {
   writeStorage(STORAGE_KEYS.cameraPreviewWidth, String(Math.round(cameraPreviewState.width)));
 };
 
-const applyCameraPreviewPosition = () => {
+export const applyCameraPreviewPosition = () => {
   if (!cameraPreview) {
     return;
   }
@@ -118,7 +118,7 @@ export const restoreCameraPreviewPosition = () => {
   }
 };
 
-const placeCameraPreviewAtCorner = () => {
+export const placeCameraPreviewAtCorner = () => {
   if (!cameraPreview) {
     return;
   }
@@ -134,7 +134,7 @@ const placeCameraPreviewAtCorner = () => {
   applyCameraPreviewPosition();
 };
 
-const showCameraPreview = (stream) => {
+export const showCameraPreview = (stream) => {
   if (!cameraPreview || !cameraPreviewVideo) {
     return;
   }
@@ -160,7 +160,7 @@ const showCameraPreview = (stream) => {
   applyCameraPreviewPosition();
 };
 
-const hideCameraPreview = () => {
+export const hideCameraPreview = () => {
   if (!cameraPreview || !cameraPreviewVideo) {
     return;
   }
@@ -176,7 +176,7 @@ const hideCameraPreview = () => {
   cameraPreviewState.resizePointerId = null;
 };
 
-const onCameraPreviewPointerDown = (event) => {
+export const onCameraPreviewPointerDown = (event) => {
   if (!cameraPreview || !cameraPreviewHandle || cameraPreview.classList.contains("hidden")) {
     return;
   }
@@ -190,7 +190,7 @@ const onCameraPreviewPointerDown = (event) => {
   event.preventDefault();
 };
 
-const onCameraPreviewPointerMove = (event) => {
+export const onCameraPreviewPointerMove = (event) => {
   if (!cameraPreview || cameraPreviewState.dragPointerId !== event.pointerId) {
     return;
   }
@@ -206,7 +206,7 @@ const onCameraPreviewPointerMove = (event) => {
   event.preventDefault();
 };
 
-const onCameraPreviewPointerUp = (event) => {
+export const onCameraPreviewPointerUp = (event) => {
   if (
     !cameraPreview ||
     !cameraPreviewHandle ||
@@ -221,7 +221,7 @@ const onCameraPreviewPointerUp = (event) => {
   cameraPreview.classList.remove("dragging");
 };
 
-const onCameraPreviewResizeDown = (event) => {
+export const onCameraPreviewResizeDown = (event) => {
   if (!cameraPreview || !cameraPreviewResize || cameraPreview.classList.contains("hidden")) {
     return;
   }
@@ -234,7 +234,7 @@ const onCameraPreviewResizeDown = (event) => {
   event.preventDefault();
 };
 
-const onCameraPreviewResizeMove = (event) => {
+export const onCameraPreviewResizeMove = (event) => {
   if (!cameraPreview || cameraPreviewState.resizePointerId !== event.pointerId) {
     return;
   }
@@ -251,7 +251,7 @@ const onCameraPreviewResizeMove = (event) => {
   event.preventDefault();
 };
 
-const onCameraPreviewResizeUp = (event) => {
+export const onCameraPreviewResizeUp = (event) => {
   if (
     !cameraPreview ||
     !cameraPreviewResize ||
@@ -266,7 +266,7 @@ const onCameraPreviewResizeUp = (event) => {
   cameraPreview.classList.remove("resizing");
 };
 
-const bindCameraPreviewDrag = () => {
+export const bindCameraPreviewDrag = () => {
   if (!cameraPreview || !cameraPreviewHandle || !cameraPreviewResize) {
     return;
   }
@@ -294,7 +294,7 @@ const bindCameraPreviewDrag = () => {
   });
 };
 
-const bindCameraPreviewFullscreen = () => {
+export const bindCameraPreviewFullscreen = () => {
   if (!cameraPreview || !cameraPreviewVideo) {
     return;
   }
@@ -334,7 +334,7 @@ export const toggleCameraPreviewFullscreen = async () => {
 };
 
 
-const refreshPrimaryMediaStreams = () => {
+export const refreshPrimaryMediaStreams = () => {
   const cameraSources = getLocalVideoSourcesByKind("camera");
   const screenSources = getLocalVideoSourcesByKind("screen");
   if (state.primaryCameraSourceId && !state.localVideoSources.has(state.primaryCameraSourceId)) {
@@ -349,7 +349,7 @@ const refreshPrimaryMediaStreams = () => {
   state.screenStream = screenSources.length ? screenSources[screenSources.length - 1].stream : null;
 };
 
-const applyVideoTrackHints = (track, kind) => {
+export const applyVideoTrackHints = (track, kind) => {
   if (!track) {
     return;
   }
@@ -358,7 +358,7 @@ const applyVideoTrackHints = (track, kind) => {
   } catch {}
 };
 
-const addLocalVideoSource = (kind, stream, options = {}) => {
+export const addLocalVideoSource = (kind, stream, options = {}) => {
   const { autoSelect = "always", announce = true } = options;
   const track = stream?.getVideoTracks?.()[0] || null;
   if (!track) {
@@ -428,7 +428,7 @@ const addLocalVideoSource = (kind, stream, options = {}) => {
   return sourceId;
 };
 
-const stopLocalVideoSource = (sourceId, options = {}) => {
+export const stopLocalVideoSource = (sourceId, options = {}) => {
   const {
     silent = false,
     announce = true,
@@ -484,7 +484,7 @@ const stopLocalVideoSource = (sourceId, options = {}) => {
   return true;
 };
 
-const stopLocalVideoSourcesByKind = (kind, options = {}) => {
+export const stopLocalVideoSourcesByKind = (kind, options = {}) => {
   const ids = getLocalVideoSourcesByKind(kind).map((source) => source.id);
   if (!ids.length) {
     return false;
@@ -495,7 +495,7 @@ const stopLocalVideoSourcesByKind = (kind, options = {}) => {
   return true;
 };
 
-const updateDemoButtonLabel = () => {
+export const updateDemoButtonLabel = () => {
   refreshPrimaryMediaStreams();
   const screenCount = getLocalVideoSourceCount("screen");
   if (!demoButton) {
@@ -506,7 +506,7 @@ const updateDemoButtonLabel = () => {
   updateDemoControlState();
 };
 
-const updateCameraButtonLabel = () => {
+export const updateCameraButtonLabel = () => {
   refreshPrimaryMediaStreams();
   if (!cameraButton) {
     return;
@@ -515,7 +515,7 @@ const updateCameraButtonLabel = () => {
   cameraButton.textContent = cameraCount > 0 ? "Camera: on (" + cameraCount + ")" : "Camera: off";
 };
 
-const buildCameraVideoConstraints = (facing = state.cameraFacing, deviceId = "") => {
+export const buildCameraVideoConstraints = (facing = state.cameraFacing, deviceId = "") => {
   const constraints = {
     width: { ideal: 1920, max: 1920 },
     height: { ideal: 1080, max: 1080 },
@@ -529,7 +529,7 @@ const buildCameraVideoConstraints = (facing = state.cameraFacing, deviceId = "")
   return constraints;
 };
 
-const updateCameraSwitchButtonLabel = () => {
+export const updateCameraSwitchButtonLabel = () => {
   if (!cameraSwitchButton) {
     return;
   }
@@ -542,7 +542,7 @@ const updateCameraSwitchButtonLabel = () => {
     state.cameraFacing === "environment" ? "Camera: back" : "Camera: front";
 };
 
-const stopCamera = (silent = false) => {
+export const stopCamera = (silent = false) => {
   const hadCameras = stopLocalVideoSourcesByKind("camera", {
     silent: true,
     announce: false,
@@ -559,7 +559,7 @@ const stopCamera = (silent = false) => {
   }
 };
 
-const requestCameraStream = async (facing = state.cameraFacing, deviceId = "") => {
+export const requestCameraStream = async (facing = state.cameraFacing, deviceId = "") => {
   const preferred = {
     video: buildCameraVideoConstraints(facing, deviceId),
     audio: false
@@ -578,7 +578,7 @@ const requestCameraStream = async (facing = state.cameraFacing, deviceId = "") =
 // Local video sources (camera / screen)
 // ============================================================
 
-const startCamera = async (options = {}) => {
+export const startCamera = async (options = {}) => {
   const { deviceId = "" } = options;
   if (!window.isSecureContext) {
     log("Camera unavailable: HTTPS required");
@@ -612,7 +612,7 @@ export const toggleCamera = async () => {
   await startCamera();
 };
 
-const switchCameraFacing = async () => {
+export const switchCameraFacing = async () => {
   if (!isMobileCallMode) {
     return false;
   }
@@ -697,7 +697,7 @@ const switchCameraFacing = async () => {
   }
 };
 
-const stopScreenShare = (silent = false) => {
+export const stopScreenShare = (silent = false) => {
   const hadShares = stopLocalVideoSourcesByKind("screen", {
     silent: true,
     announce: true,
@@ -713,7 +713,7 @@ const stopScreenShare = (silent = false) => {
   }
 };
 
-const startScreenShare = async () => {
+export const startScreenShare = async () => {
   if (!window.isSecureContext) {
     log("Screen sharing unavailable: HTTPS required");
     return false;

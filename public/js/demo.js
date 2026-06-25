@@ -615,7 +615,7 @@ export const setDemoImageSource = (sourceId) => {
   updateDemoControlState();
 };
 
-const demoWindowState = {
+export const demoWindowState = {
   x: null,
   y: null,
   width: null,
@@ -636,7 +636,7 @@ const demoWindowState = {
   placed: false
 };
 
-const clampDemoWindowSize = (width, height) => {
+export const clampDemoWindowSize = (width, height) => {
   const margin = 12;
   const maxWidthByViewport = Math.max(demoWindowState.minWidth, window.innerWidth - margin * 2);
   const maxHeightByViewport = Math.max(demoWindowState.minHeight, window.innerHeight - margin * 2);
@@ -683,7 +683,7 @@ const persistDemoWindowRect = () => {
   writeStorage(STORAGE_KEYS.demoWindowH, String(Math.round(demoWindowState.height ?? 0)));
 };
 
-const applyDemoWindowRect = () => {
+export const applyDemoWindowRect = () => {
   if (!demoModalContent || isMobileCallMode) {
     return;
   }
@@ -740,7 +740,7 @@ export const restoreDemoWindowRect = () => {
   }
 };
 
-const placeDemoWindowDefault = () => {
+export const placeDemoWindowDefault = () => {
   if (!demoModalContent || isMobileCallMode) {
     return;
   }
@@ -856,7 +856,7 @@ const onDemoResizePointerUp = (event) => {
   demoModalContent.classList.remove("is-resizing");
 };
 
-const bindDemoWindowControls = () => {
+export const bindDemoWindowControls = () => {
   if (!demoModalContent || !demoHeader || !demoResizeHandle || isMobileCallMode) {
     return;
   }
@@ -870,7 +870,7 @@ const bindDemoWindowControls = () => {
   demoResizeHandle.addEventListener("pointercancel", onDemoResizePointerUp);
 };
 
-const bindDemoFullscreenGesture = () => {
+export const bindDemoFullscreenGesture = () => {
   if (!demoHeader) {
     return;
   }
@@ -883,7 +883,7 @@ const bindDemoFullscreenGesture = () => {
   });
 };
 
-const openDemoModal = async () => {
+export const openDemoModal = async () => {
   if (!demoModal || !demoStage || !demoVideo || !demoLoader) {
     log("Демо окно недоступно");
     return;
@@ -941,7 +941,7 @@ const openDemoModal = async () => {
   updateDemoControlState();
 };
 
-const closeDemoModal = () => {
+export const closeDemoModal = () => {
   if (!demoModal) {
     return;
   }
