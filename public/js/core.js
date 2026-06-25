@@ -1,24 +1,20 @@
 import {
   statusEl, roomIdEl, roomLinkEl, copyLinkButton,
-  chatLogEl, chatPanelEl, chatToggleButton, chatFileInput, chatFileButton,
+  chatLogEl, chatPanelEl, chatForm, chatInput, chatFileButton, chatFileInput,
   mobileChatForm, mobileChatInput, mobileChatFileButton,
   cmdForm, cmdInput, cmdArrow, cmdMenu, muteButton, noiseButton, cameraButton,
   cameraSwitchButton, leaveButton, helpButton, themeModal, themeColorInput,
   themeTextInput, themeApplyButton, themeCancelButton, themeError,
   globalChatModal, globalChatForm, globalChatInput,
   globalChatCloseButton, globalChatToggleButton, themeModeToggleButton,
-  demoButton, demoModal, demoModalContent, demoHeader, demoStage,
-  demoVideo, demoLoader, demoLoupe, demoResizeHandle, demoClose,
-  demoZoomIndicator, demoUserSelect, demoStatus, demoSourcePrevButton,
-  demoSourceNextButton, demoZoomOutButton, demoZoomInButton, demoFitButton,
-  demoResetViewButton, demoFullscreenButton, demoShareToggleButton,
+  demoButton,
   policyModal, policyAcceptButton, cameraPreview,
   cameraPreviewHandle, cameraPreviewVideo, cameraPreviewResize,
   updateModalOverlayState
 } from "./dom.js";
 import { readStorage, writeStorage } from "./storage.js";
 import {
-  state, isMobileCallMode, DEMO_COMPACT_WINDOW,
+  state, isMobileCallMode,
   STORAGE_KEYS, DEFAULT_ICE_SERVERS,
   GLOBAL_CHAT_RETRY_MS
 } from "./state.js";
@@ -64,14 +60,13 @@ import {
 } from "./theme.js";
 import { renderParticipants, updateLocalParticipant } from "./participants.js";
 import {
-  demoSources, demoState, getDemoSourceIds, setDemoViewMode, updateDemoStatus,
-  updateDemoControlState, updateDemoTransform, setDemoScale, nudgeDemo,
-  showDemoLoupe, getLocalOwnerId, getLocalVideoSourcesByKind,
+  demoSources,
+  getLocalOwnerId, getLocalVideoSourcesByKind,
   getLocalVideoSourceCount, allocateLocalVideoSourceId, composeLocalVideoLabel,
-  composeRemoteVideoLabel, removeDemoSourcesByOwner, showDemoPlaceholder,
-  updateDemoSelect, removeDemoSource, upsertDemoSource, fitDemoToViewport,
-  resetDemoView, selectDemoSourceByStep, isDemoFullscreen, toggleDemoFullscreen,
-  setDemoImageSource, announceDemoStart, announceDemoStop
+  composeRemoteVideoLabel, removeDemoSourcesByOwner,
+  removeDemoSource, upsertDemoSource,
+  openDemoWindow, closeDemoWindow, closeAllDemoWindows,
+  announceDemoStart, announceDemoStop
 } from "./demo.js";
 import {
   applyVideoTrackHints, addLocalVideoSource, stopLocalVideoSource,
@@ -83,11 +78,6 @@ import {
   toggleCamera, toggleCameraPreviewFullscreen, restoreCameraPreviewPosition,
   isCameraPreviewFullscreen
 } from "./video.js";
-import {
-  demoWindowState, clampDemoWindowSize, applyDemoWindowRect, placeDemoWindowDefault,
-  restoreDemoWindowRect,
-  bindDemoWindowControls, bindDemoFullscreenGesture, openDemoModal, closeDemoModal
-} from "./demo.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
@@ -700,23 +690,7 @@ const cleanupConnections = () => {
   });
   state.remoteAudioOutputs.clear();
   demoSources.clear();
-  demoState.sourceId = null;
-  demoState.viewMode = "fit";
-  demoState.dragging = false;
-  demoState.stagePointerId = null;
-  demoStage?.classList.remove("is-dragging");
-  if (demoState.loupeTimer) {
-    clearTimeout(demoState.loupeTimer);
-    demoState.loupeTimer = null;
-  }
-  if (demoVideo) {
-    demoVideo.srcObject = null;
-  }
-  if (demoUserSelect) {
-    demoUserSelect.innerHTML = "";
-    demoUserSelect.disabled = true;
-  }
-  showDemoPlaceholder();
+  closeAllDemoWindows();
 };
 
 const ensurePeer = (peerId) => {
@@ -768,25 +742,10 @@ const ensurePeer = (peerId) => {
         },
         { autoSelect: "if-empty-or-current" }
       );
-      if (demoModal && !demoModal.classList.contains("open")) {
-        openDemoModal();
-      }
       event.track.onended = () => {
         const current = demoSources.get(sourceId);
         if (current?.trackId === trackId) {
           removeDemoSource(sourceId);
-        }
-      };
-      event.track.onmute = () => {
-        const current = demoSources.get(sourceId);
-        if (current?.trackId === trackId && demoState.sourceId === sourceId) {
-          showDemoPlaceholder("Stream paused");
-        }
-      };
-      event.track.onunmute = () => {
-        const current = demoSources.get(sourceId);
-        if (current?.trackId === trackId && demoState.sourceId === sourceId) {
-          setDemoImageSource(sourceId);
         }
       };
       return;
@@ -1020,10 +979,6 @@ const handleCommand = async (input) => {
     }
     if (mode === "off") {
       stopScreenShare();
-      return;
-    }
-    if (mode === "full" || mode === "fullscreen") {
-      await toggleDemoFullscreen();
       return;
     }
     if (mode === "list") {
@@ -1278,9 +1233,6 @@ const connectToRoom = async (roomId, key) => {
       }
       const participant = state.participants.get(msg.from);
       announceDemoStart(participant?.name || "Guest");
-      if (demoModal && !demoModal.classList.contains("open")) {
-        openDemoModal();
-      }
       return;
     }
     if (msg.type === "demo-stop") {
@@ -1512,12 +1464,6 @@ document.addEventListener("pointerdown", (event) => {
   resetCommandSuggestState();
 });
 
-if (chatToggleButton) {
-  chatToggleButton.addEventListener("click", () => {
-    toggleChatHidden();
-  });
-}
-
 if (mobileChatForm) {
   mobileChatForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1536,10 +1482,17 @@ if (mobileChatFileButton) {
 }
 
 if (chatFileButton) {
-  chatFileButton.addEventListener("click", async () => {
+  chatFileButton.addEventListener("click", () => {
+    openChatFilePicker();
+  });
+}
+
+if (chatFileInput) {
+  chatFileInput.addEventListener("change", async () => {
     const file = chatFileInput?.files?.[0];
-    if (!file) return;
-    await sendFileMessage(file);
+    if (file) {
+      await sendFileMessage(file);
+    }
     if (chatFileInput) {
       chatFileInput.value = "";
     }
@@ -1547,9 +1500,14 @@ if (chatFileButton) {
   });
 }
 
-if (chatFileInput) {
-  chatFileInput.addEventListener("change", () => {
-    updateChatFileButton();
+if (chatForm) {
+  chatForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const text = chatInput?.value || "";
+    const sent = sendChatMessage(text);
+    if (sent && chatInput) {
+      chatInput.value = "";
+    }
   });
 }
 
@@ -1604,9 +1562,6 @@ document.addEventListener("keydown", (event) => {
     if (themeModal?.classList.contains("open")) {
       closeThemeModal();
     }
-    if (demoModal?.classList.contains("open")) {
-      closeDemoModal();
-    }
   }
 });
 
@@ -1615,31 +1570,7 @@ if (demoButton) {
     if (!requireRoomConnection()) {
       return;
     }
-    if (demoModal?.classList.contains("open")) {
-      closeDemoModal();
-      return;
-    }
-    if (demoSources.size === 0) {
-      const started = await startScreenShare();
-      if (!started) {
-        return;
-      }
-    }
-    openDemoModal();
-  });
-}
-
-if (demoClose) {
-  demoClose.addEventListener("click", () => {
-    closeDemoModal();
-  });
-}
-
-if (demoModal) {
-  demoModal.addEventListener("click", (event) => {
-    if (event.target === demoModal) {
-      closeDemoModal();
-    }
+    await startScreenShare();
   });
 }
 
@@ -1698,220 +1629,10 @@ updateModalOverlayState();
 restoreCameraPreviewPosition();
 bindCameraPreviewDrag();
 bindCameraPreviewFullscreen();
-restoreDemoWindowRect();
-bindDemoWindowControls();
-bindDemoFullscreenGesture();
-
-if (demoUserSelect) {
-  demoUserSelect.addEventListener("change", () => {
-    const nextId = demoUserSelect.value;
-    if (nextId) {
-      setDemoImageSource(nextId);
-    }
-  });
-}
-
-if (demoSourcePrevButton) {
-  demoSourcePrevButton.addEventListener("click", () => {
-    selectDemoSourceByStep(-1);
-  });
-}
-
-if (demoSourceNextButton) {
-  demoSourceNextButton.addEventListener("click", () => {
-    selectDemoSourceByStep(1);
-  });
-}
-
-if (demoZoomOutButton) {
-  demoZoomOutButton.addEventListener("click", () => {
-    setDemoScale(demoState.scale - demoState.step);
-  });
-}
-
-if (demoZoomInButton) {
-  demoZoomInButton.addEventListener("click", () => {
-    setDemoScale(demoState.scale + demoState.step);
-  });
-}
-
-if (demoFitButton) {
-  demoFitButton.addEventListener("click", () => {
-    fitDemoToViewport();
-  });
-}
-
-if (demoResetViewButton) {
-  demoResetViewButton.addEventListener("click", () => {
-    resetDemoView();
-  });
-}
-
-if (demoFullscreenButton) {
-  demoFullscreenButton.addEventListener("click", async () => {
-    await toggleDemoFullscreen();
-  });
-}
-
-if (demoShareToggleButton) {
-  demoShareToggleButton.addEventListener("click", async () => {
-    if (state.screenStream) {
-      stopScreenShare();
-      return;
-    }
-    const started = await startScreenShare();
-    if (started && demoModal?.classList.contains("open")) {
-      openDemoModal();
-    }
-  });
-}
 
 document.addEventListener("fullscreenchange", () => {
   if (cameraPreview) {
     cameraPreview.classList.toggle("is-fullscreen", isCameraPreviewFullscreen());
-  }
-  if (!isDemoFullscreen() && demoModal?.classList.contains("open") && !isMobileCallMode) {
-    applyDemoWindowRect();
-  }
-  updateDemoControlState();
-});
-
-if (demoStage && !DEMO_COMPACT_WINDOW) {
-  demoStage.addEventListener("wheel", (event) => {
-    if (!demoState.sourceId) {
-      return;
-    }
-    event.preventDefault();
-    const direction = event.deltaY > 0 ? -1 : 1;
-    setDemoScale(demoState.scale + direction * demoState.step);
-    showDemoLoupe(event.clientX, event.clientY);
-  });
-
-  demoStage.addEventListener("pointerdown", (event) => {
-    if (!demoState.sourceId) {
-      return;
-    }
-    demoState.dragging = true;
-    demoState.stagePointerId = event.pointerId;
-    demoState.dragStartX = event.clientX;
-    demoState.dragStartY = event.clientY;
-    demoState.originX = demoState.offsetX;
-    demoState.originY = demoState.offsetY;
-    demoStage.classList.add("is-dragging");
-    demoStage.setPointerCapture(event.pointerId);
-  });
-
-  demoStage.addEventListener("pointermove", (event) => {
-    if (!demoState.dragging || demoState.stagePointerId !== event.pointerId) {
-      return;
-    }
-    const dx = event.clientX - demoState.dragStartX;
-    const dy = event.clientY - demoState.dragStartY;
-    demoState.offsetX = demoState.originX + dx;
-    demoState.offsetY = demoState.originY + dy;
-    setDemoViewMode("manual");
-    updateDemoTransform();
-  });
-
-  demoStage.addEventListener("pointerup", (event) => {
-    if (demoState.stagePointerId !== event.pointerId) {
-      return;
-    }
-    demoState.dragging = false;
-    demoState.stagePointerId = null;
-    demoStage.classList.remove("is-dragging");
-    demoStage.releasePointerCapture(event.pointerId);
-  });
-
-  demoStage.addEventListener("pointercancel", () => {
-    demoState.dragging = false;
-    demoState.stagePointerId = null;
-    demoStage.classList.remove("is-dragging");
-  });
-
-  demoStage.addEventListener("pointerleave", () => {
-    demoState.dragging = false;
-    demoState.stagePointerId = null;
-    demoStage.classList.remove("is-dragging");
-  });
-
-  demoStage.addEventListener("dblclick", () => {
-    if (!demoState.sourceId) {
-      return;
-    }
-    if (demoState.viewMode === "fit") {
-      resetDemoView();
-    } else {
-      fitDemoToViewport();
-    }
-  });
-
-  demoStage.addEventListener("keydown", (event) => {
-    if (!demoModal?.classList.contains("open")) {
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      nudgeDemo(0, -20);
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      nudgeDemo(0, 20);
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      nudgeDemo(-20, 0);
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault();
-      nudgeDemo(20, 0);
-    } else if (event.key === "+" || event.key === "=") {
-      event.preventDefault();
-      setDemoScale(demoState.scale + demoState.step);
-    } else if (event.key === "-" || event.key === "_") {
-      event.preventDefault();
-      setDemoScale(demoState.scale - demoState.step);
-    } else if (event.key === "0") {
-      event.preventDefault();
-      fitDemoToViewport();
-    } else if (event.key === "1") {
-      event.preventDefault();
-      resetDemoView();
-    } else if (event.key === "[" || event.key === "PageUp") {
-      event.preventDefault();
-      selectDemoSourceByStep(-1);
-    } else if (event.key === "]" || event.key === "PageDown") {
-      event.preventDefault();
-      selectDemoSourceByStep(1);
-    } else if (event.key === "f" || event.key === "F") {
-      event.preventDefault();
-      toggleDemoFullscreen();
-    } else if (event.key === "s" || event.key === "S") {
-      event.preventDefault();
-      if (state.screenStream) {
-        stopScreenShare();
-      } else {
-        startScreenShare().catch(() => {});
-      }
-    }
-  });
-}
-
-window.addEventListener("resize", () => {
-  if (!demoModal?.classList.contains("open")) {
-    return;
-  }
-  if (isDemoFullscreen()) {
-    updateDemoControlState();
-    return;
-  }
-  if (!isMobileCallMode) {
-    applyDemoWindowRect();
-  }
-  if (DEMO_COMPACT_WINDOW) {
-    return;
-  }
-  if (demoState.viewMode === "fit") {
-    fitDemoToViewport({ persistMode: false });
-  } else {
-    updateDemoTransform();
   }
 });
 

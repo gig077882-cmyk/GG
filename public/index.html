@@ -76,6 +76,16 @@
       <section id="chat-panel" class="panel chat">
         <div class="panel-title">Чат</div>
         <div id="chat-log"></div>
+        <form id="chat-form" class="chat-form" autocomplete="off">
+          <input
+            id="chat-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Сообщение..."
+          />
+          <button id="chat-send" type="submit">Отправить</button>
+          <button id="chat-file" type="button">Файл</button>
+        </form>
       </section>
       <input id="chat-file-input" class="chat-file-hidden" type="file" />
       <footer class="app-footer">
@@ -141,23 +151,7 @@
         </form>
       </div>
     </div>
-            <div id="demo-modal" class="demo-modal" aria-hidden="true">
-      <div id="demo-modal-content" class="demo-modal-content">
-        <div class="demo-header">
-          <div class="demo-title">ДЕМО</div>
-        </div>
-        <div id="demo-stage" class="demo-stage" tabindex="0">
-          <div id="demo-loader" class="demo-loader">
-            <div class="demo-spinner"></div>
-            <div>Нет активной демонстрации</div>
-          </div>
-          <div id="demo-viewport" class="demo-viewport">
-            <video id="demo-video" autoplay playsinline muted></video>
-          </div>
-        </div>
-        <div id="demo-resize" class="demo-resize" aria-hidden="true"></div>
-      </div>
-    </div>
+    <div id="demo-windows" aria-live="polite"></div>
 
 <script type="module" src="js/main.js"></script>
     <script>
