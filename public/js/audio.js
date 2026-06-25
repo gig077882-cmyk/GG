@@ -26,9 +26,19 @@ const ensureAudioOutput = (audio) => {
       return state.remoteAudioOutputs.get(audio.id);
     }
     const source = state.audioContext.createMediaElementSource(audio);
+    const highpass = state.audioContext.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 80;
+    highpass.Q.value = 0.7;
+    const compressor = state.audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -24;
+    compressor.knee.value = 12;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.12;
     const gain = state.audioContext.createGain();
-    source.connect(gain).connect(state.audioContext.destination);
-    const output = { source, gain };
+    source.connect(highpass).connect(compressor).connect(gain).connect(state.audioContext.destination);
+    const output = { source, gain, highpass, compressor };
     state.remoteAudioOutputs.set(audio.id, output);
     return output;
   } catch {
@@ -42,6 +52,12 @@ export const cleanupAudioOutput = (audioId) => {
     return;
   }
   output.source.disconnect();
+  if (output.highpass) {
+    output.highpass.disconnect();
+  }
+  if (output.compressor) {
+    output.compressor.disconnect();
+  }
   output.gain.disconnect();
   state.remoteAudioOutputs.delete(audioId);
 };
@@ -57,7 +73,6 @@ export const applyVolumeToElement = (audio, level) => {
   }
   audio.volume = Math.min(1, gainValue);
 };
-
 
 const getAudioElement = (participantId) =>
   document.getElementById(`audio-${participantId}`);
@@ -98,20 +113,21 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
     this.outputQueue = [];
     this.outputIndex = 0;
     this.mix = 1;
-    this.gateThreshold = 0.078;
-    this.gateFloor = 0.003;
-    this.gateAttack = 0.006;
-    this.gateRelease = 0.3;
-    this.gateGain = 1;
-    this.attackCoeff = Math.exp(-1 / (sampleRate * this.gateAttack));
-    this.releaseCoeff = Math.exp(-1 / (sampleRate * this.gateRelease));
+    this.gateThreshold = 0.45;
+    this.gateFloor = 0.02;
+    this.gain = 1;
+    this.holdFrames = 0;
+    this.maxHoldFrames = Math.round(sampleRate * 0.12 / 128);
+    this.attackCoeff = Math.exp(-1 / (sampleRate * 0.006));
+    this.releaseCoeff = Math.exp(-1 / (sampleRate * 0.18));
     this.ready = false;
     this.port.onmessage = (event) => {
       if (event.data && event.data.type === "level") {
-        const value = Number(event.data.value);
-        if (!Number.isNaN(value)) {
-          this.mix = Math.min(1, Math.max(0, value));
-        }
+        const value = Math.min(1, Math.max(0, Number(event.data.value) || 0));
+        this.mix = 0.2 + value * 0.8;
+        this.gateThreshold = 0.5 - value * 0.45;
+        this.gateFloor = 0.15 - value * 0.13;
+        this.maxHoldFrames = Math.round(sampleRate * (0.05 + value * 0.15) / 128);
       }
     };
     this.module = createRNNWasmModuleSync();
@@ -138,25 +154,16 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
     }
     const inputChannel = input && input[0] ? input[0] : null;
     const outputChannel = output[0];
-    let rms = 0;
-    if (inputChannel) {
-      let sum = 0;
-      for (let i = 0; i < inputChannel.length; i += 1) {
-        const sample = inputChannel[i];
-        sum += sample * sample;
-      }
-      rms = Math.sqrt(sum / inputChannel.length);
-    }
-    const targetGate = rms < this.gateThreshold ? 0 : 1;
     for (let i = 0; i < outputChannel.length; i += 1) {
       const sample = inputChannel ? inputChannel[i] : 0;
       let processed = sample;
+      let vadProb = 0.5;
       if (this.ready) {
         this.pending[this.pendingIndex] = sample;
         this.pendingIndex += 1;
         if (this.pendingIndex >= this.frameSize) {
           this.inHeap.set(this.pending);
-          this.module._rnnoise_process_frame(this.statePtr, this.outPtr, this.inPtr);
+          vadProb = this.module._rnnoise_process_frame(this.statePtr, this.outPtr, this.inPtr);
           this.outputQueue.push(Float32Array.from(this.outHeap));
           this.pendingIndex = 0;
         }
@@ -170,10 +177,16 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
         }
       }
       const mixed = processed * this.mix + sample * (1 - this.mix);
-      const coeff = targetGate > this.gateGain ? this.attackCoeff : this.releaseCoeff;
-      this.gateGain = targetGate + (this.gateGain - targetGate) * coeff;
-      const gate = this.gateGain + this.gateFloor * (1 - this.gateGain);
-      outputChannel[i] = mixed * gate;
+      const isVoice = Number.isFinite(vadProb) && vadProb >= this.gateThreshold;
+      if (isVoice) {
+        this.holdFrames = this.maxHoldFrames;
+      } else if (this.holdFrames > 0) {
+        this.holdFrames -= 1;
+      }
+      const targetGain = this.holdFrames > 0 ? 1 : this.gateFloor;
+      const coeff = targetGain > this.gain ? this.attackCoeff : this.releaseCoeff;
+      this.gain = targetGain + (this.gain - targetGain) * coeff;
+      outputChannel[i] = mixed * this.gain;
     }
     for (let c = 1; c < output.length; c += 1) {
       output[c].set(outputChannel);
@@ -210,21 +223,33 @@ export const ensureProcessedStream = async () => {
   });
   const highpass = state.audioContext.createBiquadFilter();
   highpass.type = "highpass";
-  highpass.frequency.value = 170;
+  highpass.frequency.value = 80;
   highpass.Q.value = 0.7;
   const lowpass = state.audioContext.createBiquadFilter();
   lowpass.type = "lowpass";
-  lowpass.frequency.value = 11000;
+  lowpass.frequency.value = 12000;
   lowpass.Q.value = 0.7;
   const compressor = state.audioContext.createDynamicsCompressor();
   compressor.threshold.value = -24;
-  compressor.knee.value = 24;
-  compressor.ratio.value = 6;
-  compressor.attack.value = 0.005;
-  compressor.release.value = 0.15;
+  compressor.knee.value = 12;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.12;
+  const limiter = state.audioContext.createDynamicsCompressor();
+  limiter.threshold.value = -3;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0;
+  limiter.release.value = 0.05;
   const destination = state.audioContext.createMediaStreamDestination();
-  source.connect(highpass).connect(lowpass).connect(processor).connect(compressor).connect(destination);
-  processor.port.postMessage({ type: "level", value: Math.min(1, state.noiseLevel / 75) });
+  source
+    .connect(highpass)
+    .connect(lowpass)
+    .connect(processor)
+    .connect(compressor)
+    .connect(limiter)
+    .connect(destination);
+  processor.port.postMessage({ type: "level", value: state.noiseLevel / 100 });
   state.processingSource = source;
   state.processingNode = processor;
   state.processingDestination = destination;

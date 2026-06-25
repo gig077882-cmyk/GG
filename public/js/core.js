@@ -377,13 +377,20 @@ const ensureLocalStream = async () => {
   if (state.rawStream) {
     return state.localStream;
   }
-  state.rawStream = await navigator.mediaDevices.getUserMedia({
+  const constraints = {
     audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
+      echoCancellation: { ideal: true },
+      noiseSuppression: { ideal: true },
+      autoGainControl: { ideal: true },
+      sampleRate: { ideal: 48000 },
+      channelCount: { ideal: 1 }
     }
-  });
+  };
+  try {
+    state.rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch {
+    state.rawStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
   let nextStream = state.rawStream;
   if (state.neuralNoiseSuppression) {
     nextStream = await ensureProcessedStream();
@@ -493,7 +500,7 @@ const toggleNeuralNoiseSuppression = async () => {
     if (state.neuralNoiseSuppression && state.processingNode) {
       state.processingNode.port.postMessage({
         type: "level",
-        value: Math.min(1, state.noiseLevel / 75)
+        value: state.noiseLevel / 100
       });
     }
   } catch {
