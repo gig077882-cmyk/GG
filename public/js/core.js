@@ -1,12 +1,12 @@
 import {
   statusEl, participantsEl, roomIdEl, roomLinkEl, copyLinkButton,
-  chatPanelEl, chatLogEl, chatToggleButton, chatFileInput, chatFileButton,
-  mobileChatForm, mobileChatInput, mobileChatSendButton, mobileChatFileButton,
+  chatLogEl, chatPanelEl, chatToggleButton, chatFileInput, chatFileButton,
+  mobileChatForm, mobileChatInput, mobileChatFileButton,
   cmdForm, cmdInput, cmdArrow, cmdMenu, muteButton, noiseButton, cameraButton,
   cameraSwitchButton, leaveButton, helpButton, themeModal, themeColorInput,
   themeTextInput, themeApplyButton, themeCancelButton, themeError,
-  globalChatModal, globalChatLog, globalChatForm, globalChatInput,
-  globalChatSendButton, globalChatCloseButton, globalChatToggleButton,
+  globalChatModal, globalChatForm, globalChatInput,
+  globalChatCloseButton, globalChatToggleButton,
   demoButton, demoModal, demoModalContent, demoHeader, demoStage,
   demoVideo, demoLoader, demoLoupe, demoResizeHandle, demoClose,
   demoZoomIndicator, demoUserSelect, demoStatus, demoSourcePrevButton,
@@ -19,14 +19,12 @@ import {
 import { readStorage, writeStorage } from "./storage.js";
 import {
   state, isMobileCallMode, DEMO_COMPACT_WINDOW,
-  STORAGE_KEYS, DEFAULT_ICE_SERVERS, MAX_FILE_SIZE, MAX_TEXT_PREVIEW,
-  MAX_CHAT_HISTORY, MAX_GLOBAL_CHAT_HISTORY, OFFER_RETRY_DELAY_MS,
+  STORAGE_KEYS, DEFAULT_ICE_SERVERS, OFFER_RETRY_DELAY_MS,
   GLOBAL_CHAT_RETRY_MS, offerRetryTimers
 } from "./state.js";
 import {
   clampRgb, mixChannel, rgbToHex, parseThemeColor,
-  formatChatTime, isTypingTarget, formatFileSize, normalizeFilename,
-  isTextFile, isImageFile, clampTextPreview, hashString,
+  isTypingTarget, hashString,
   parseHash, formatMediaError, parseStoredNumber
 } from "./utils.js";
 import { ensureIceServers, fetchCreateRoom, resolveRoomName, looksLikeRoomId } from "./api.js";
@@ -41,6 +39,12 @@ import {
   selectCommandSuggestion, renderCommandMenu, resetCommandSuggestState,
   refreshCommandSuggestions
 } from "./commands.js";
+import {
+  appendChatMessage, renderChatHistory,
+  appendGlobalChatMessage, renderGlobalChatHistory,
+  setChatHidden, toggleChatHidden, openChatFilePicker,
+  updateChatFileButton, updateMobileChatControls, sendFileMessage, sendChatMessage
+} from "./chat.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
@@ -119,139 +123,9 @@ if (isMobileCallMode) {
 // Chat and global chat UI
 // ============================================================
 
-const createChatMessageElement = ({ type, name, text, ts, from, file }) => {
-  const line = document.createElement("div");
-  line.className = "chat-message";
-  const participant = from ? state.participants.get(from) : null;
-  const displayName = name || participant?.name || "Гость";
-  const timeLabel = ts ? `[${formatChatTime(ts)}] ` : "";
-  const header = document.createElement("div");
-  header.className = "chat-message-header";
-  const timeEl = document.createElement("span");
-  timeEl.textContent = timeLabel;
-  const authorEl = document.createElement("span");
-  authorEl.className = "chat-message-author";
-  authorEl.textContent = displayName;
-  header.appendChild(timeEl);
-  header.appendChild(authorEl);
-  line.appendChild(header);
-
-  if (type === "file" && file) {
-    const meta = document.createElement("div");
-    meta.className = "chat-file-meta";
-    const nameEl = document.createElement("span");
-    nameEl.textContent = normalizeFilename(file.name);
-    const sizeEl = document.createElement("span");
-    sizeEl.textContent = formatFileSize(file.size);
-    meta.appendChild(nameEl);
-    if (file.size) {
-      meta.appendChild(sizeEl);
-    }
-    const fileUrl = file.url || file.dataUrl;
-    if (fileUrl) {
-      const link = document.createElement("a");
-      link.className = "chat-file-link";
-      link.href = fileUrl;
-      link.download = normalizeFilename(file.name);
-      link.textContent = "Скачать";
-      meta.appendChild(link);
-    }
-    line.appendChild(meta);
-    if (file.isImage && fileUrl) {
-      const img = document.createElement("img");
-      img.className = "chat-image-preview";
-      img.src = fileUrl;
-      img.alt = normalizeFilename(file.name);
-      line.appendChild(img);
-    }
-    if (file.textPreview) {
-      const code = document.createElement("div");
-      code.className = "chat-code-preview";
-      code.textContent = file.textPreview;
-      line.appendChild(code);
-    }
-    return line;
-  }
-
-  const body = document.createElement("div");
-  body.className = "chat-message-text";
-  body.textContent = text || "";
-  line.appendChild(body);
-  return line;
-};
-
-const appendChatMessage = (message, options = {}) => {
-  if (!chatLogEl) {
-    return;
-  }
-  const { markUnread = true } = options;
-  const line = createChatMessageElement(message);
-  chatLogEl.appendChild(line);
-  chatLogEl.scrollTop = chatLogEl.scrollHeight;
-  chatPanelEl?.classList.remove("is-empty");
-  if (markUnread && isMobileCallMode && state.mobileTab !== "chat") {
-    setMobileChatUnread(true);
-  }
-};
-
-const renderChatHistory = (messages) => {
-  if (!chatLogEl) {
-    return;
-  }
-  chatLogEl.innerHTML = "";
-  chatPanelEl?.classList.add("is-empty");
-  if (!Array.isArray(messages)) {
-    return;
-  }
-  messages.slice(-MAX_CHAT_HISTORY).forEach((message) => {
-    appendChatMessage(message, { markUnread: false });
-  });
-};
-
-const createGlobalChatMessageElement = (message) => {
-  const line = createChatMessageElement(message);
-  line.classList.add("global-chat-message");
-  const header = line.querySelector(".chat-message-header");
-  if (header) {
-    const roomBadge = document.createElement("span");
-    roomBadge.className = "global-chat-room";
-    const roomName = String(message?.roomName || "").trim();
-    const roomId = String(message?.roomId || "").trim();
-    roomBadge.textContent = roomName ? roomName : roomId ? `#${roomId}` : "global";
-    header.appendChild(roomBadge);
-  }
-  return line;
-};
-
-const appendGlobalChatMessage = (message) => {
-  if (!globalChatLog) {
-    return;
-  }
-  state.globalChatMessages.push(message);
-  if (state.globalChatMessages.length > MAX_GLOBAL_CHAT_HISTORY) {
-    state.globalChatMessages.splice(0, state.globalChatMessages.length - MAX_GLOBAL_CHAT_HISTORY);
-  }
-  const line = createGlobalChatMessageElement(message);
-  globalChatLog.appendChild(line);
-  while (globalChatLog.childNodes.length > MAX_GLOBAL_CHAT_HISTORY) {
-    globalChatLog.removeChild(globalChatLog.firstChild);
-  }
-  globalChatLog.scrollTop = globalChatLog.scrollHeight;
-};
-
-const renderGlobalChatHistory = (messages) => {
-  if (!globalChatLog) {
-    return;
-  }
-  globalChatLog.innerHTML = "";
-  state.globalChatMessages = [];
-  if (!Array.isArray(messages)) {
-    return;
-  }
-  messages.slice(-MAX_GLOBAL_CHAT_HISTORY).forEach((message) => {
-    appendGlobalChatMessage(message);
-  });
-};
+// ============================================================
+// Global chat modal
+// ============================================================
 
 const openGlobalChatModal = () => {
   if (!globalChatModal) {
@@ -302,21 +176,9 @@ const sendGlobalChatMessage = (text) => {
   return true;
 };
 
-const setChatHidden = (hidden) => {
-  const effectiveHidden = isMobileCallMode ? false : hidden;
-  state.chatHidden = effectiveHidden;
-  if (chatLogEl) {
-    chatLogEl.classList.toggle("hidden", effectiveHidden);
-  }
-  if (chatPanelEl) {
-    chatPanelEl.classList.toggle("hidden", effectiveHidden);
-    chatPanelEl.setAttribute("aria-expanded", effectiveHidden ? "false" : "true");
-  }
-};
-
-const toggleChatHidden = () => {
-  setChatHidden(!state.chatHidden);
-};
+// ============================================================
+// Status and UI helpers
+// ============================================================
 
 const setStatus = (text) => {
   statusEl.textContent = text;
@@ -2515,136 +2377,6 @@ const requireRoomConnection = () => {
   }
   log("Connect to room first: use create or join");
   return false;
-};
-
-const sendChatMessage = (text) => {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return false;
-  }
-  if (!isRoomConnected()) {
-    requireRoomConnection();
-    return false;
-  }
-  sendMessage({ type: "chat", text: trimmed });
-  return true;
-};
-
-const openChatFilePicker = () => {
-  if (!chatFileInput) {
-    log("Отправка файлов недоступна");
-    return;
-  }
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-    log("Сначала подключитесь к комнате");
-    return;
-  }
-  chatFileInput.click();
-};
-
-const readFileAsText = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
-
-const readFileSliceAsText = (file, limit) => {
-  const slice = file.slice(0, limit);
-  return readFileAsText(slice);
-};
-
-const updateChatFileButton = () => {
-  if (!chatFileButton) {
-    return;
-  }
-  const hasFile = Boolean(chatFileInput?.files?.length);
-  const canSend = state.ws && state.ws.readyState === WebSocket.OPEN && hasFile;
-  chatFileButton.disabled = !canSend;
-};
-
-const updateMobileChatControls = () => {
-  const connected = Boolean(state.ws && state.ws.readyState === WebSocket.OPEN);
-  if (mobileChatInput) {
-    mobileChatInput.disabled = false;
-    mobileChatInput.placeholder = connected ? "Message..." : "Message... (connect to room first)";
-  }
-  if (mobileChatSendButton) {
-    mobileChatSendButton.disabled = false;
-  }
-  if (mobileChatFileButton) {
-    mobileChatFileButton.disabled = !connected;
-  }
-  if (globalChatInput) {
-    globalChatInput.disabled = false;
-  }
-  if (globalChatSendButton) {
-    globalChatSendButton.disabled = false;
-  }
-};
-
-const sendFileMessage = async (file) => {
-  if (!file) {
-    log("Файл не выбран");
-    return;
-  }
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-    log("Сначала подключитесь к комнате");
-    return;
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    log(`Файл слишком большой (макс ${formatFileSize(MAX_FILE_SIZE)})`);
-    return;
-  }
-  let textPreview = "";
-  try {
-    if (isTextFile(file)) {
-      const rawText = await readFileSliceAsText(file, MAX_TEXT_PREVIEW * 4);
-      textPreview = clampTextPreview(String(rawText || ""));
-    }
-  } catch {
-    log("Не удалось прочитать файл");
-    return;
-  }
-  let upload;
-  try {
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      headers: {
-        "x-room-id": state.roomId || "",
-        "x-room-key": state.key || "",
-        "x-file-name": normalizeFilename(file.name),
-        "x-file-type": file.type || "",
-        "x-file-size": String(file.size)
-      },
-      body: file
-    });
-    if (!response.ok) {
-      log("Не удалось загрузить файл");
-      return;
-    }
-    upload = await response.json();
-  } catch {
-    log("Не удалось загрузить файл");
-    return;
-  }
-  if (!upload?.fileId || !upload?.url) {
-    log("Не удалось загрузить файл");
-    return;
-  }
-  sendMessage({
-    type: "file",
-    file: {
-      name: normalizeFilename(file.name),
-      size: file.size,
-      mime: file.type || "",
-      fileId: upload.fileId,
-      url: upload.url,
-      textPreview,
-      isImage: isImageFile(file)
-    }
-  });
 };
 
 const cleanupConnections = () => {
