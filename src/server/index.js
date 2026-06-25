@@ -18,6 +18,7 @@ const { initPersistence } = require("./persistence");
  * @type {import("express").Application}
  */
 const app = express();
+app.set("trust proxy", true);
 
 /**
  * HTTP server instance.

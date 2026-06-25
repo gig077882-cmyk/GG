@@ -556,6 +556,9 @@ const connectGlobalChatSocket = () => {
   }
   const ws = new WebSocket(getWsUrl());
   state.globalWs = ws;
+  ws.onerror = (event) => {
+    log(`Global WebSocket error: ${event.type || "unknown"}`);
+  };
   ws.onopen = () => {
     if (state.globalChatRetryTimer) {
       clearTimeout(state.globalChatRetryTimer);
@@ -1123,9 +1126,8 @@ const connectToRoom = async (roomId, key) => {
   try {
     await ensureLocalStream();
   } catch {
-    log("Microphone access denied");
-    setStatus("Microphone access denied");
-    return;
+    log("Microphone access denied; joining without audio");
+    setStatus("Microphone access denied; joining without audio");
   }
   if (state.audioContext && state.audioContext.state === "suspended") {
     state.audioContext.resume().catch(() => {});
@@ -1134,6 +1136,9 @@ const connectToRoom = async (roomId, key) => {
   state.ws = ws;
   updateMobileChatControls();
   setStatus("Connecting to room...");
+  ws.onerror = (event) => {
+    log(`WebSocket error: ${event.type || "unknown"}`);
+  };
   ws.onopen = () => {
     sendMessage({
       type: "join",
@@ -1176,7 +1181,7 @@ const connectToRoom = async (roomId, key) => {
       updateChatFileButton();
       updateMobileChatControls();
       log("Connected to room");
-      if (state.muted) {
+      if (state.muted && state.localStream) {
         toggleMute();
       }
       updateCameraSwitchButtonLabel();
