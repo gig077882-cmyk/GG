@@ -1,9 +1,9 @@
 # Dependencies
-node_modules/
-app/node_modules/
+# node_modules/  # pushed intentionally
+# app/node_modules/
 
 # Environment variables
-.env
+# .env  # pushed intentionally
 
 # Database files
 data/*.db

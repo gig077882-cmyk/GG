@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "lint": "eslint src/server server.js public/js",
     "app": "cd app && npm run start",
     "app:dev": "cd app && npm run dev",
     "install:app": "cd app && npm install",
@@ -18,5 +19,10 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-plugin-jsdoc": "^63.0.8"
   }
 }

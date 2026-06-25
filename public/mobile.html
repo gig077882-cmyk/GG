@@ -1,123 +1,123 @@
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Telemost Mobile</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="mobile.css" />
-    <script>
-      (() => {
-        try {
-          const params = new URLSearchParams(location.search);
-          if (params.get("desktop") === "1") {
-            const qs = params.toString();
-            const search = qs ? `?${qs}` : "";
-            location.replace(`index.html${search}${location.hash}`);
-            return;
-          }
-          if (params.get("mobile") !== "1") {
-            params.set("mobile", "1");
-            const qs = params.toString();
-            const search = qs ? `?${qs}` : "";
-            location.replace(`mobile.html${search}${location.hash}`);
-            return;
-          }
-          const accepted = localStorage.getItem("telemost.policyAccepted") === "true";
-          if (!accepted) {
-            try {
-              sessionStorage.setItem("telemost.returnTo", location.href);
-            } catch {}
-            location.replace("landing.html");
-          }
-        } catch {
-          location.replace("landing.html");
-        }
-      })();
-    </script>
-  </head>
-  <body>
-    <canvas id="matrix-bg"></canvas>
-
-    <div id="app" class="mobile-app">
-      <header>
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Telemost Mobile</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="mobile.css" />
+    <script>
+      (() => {
+        try {
+          const params = new URLSearchParams(location.search);
+          if (params.get("desktop") === "1") {
+            const qs = params.toString();
+            const search = qs ? `?${qs}` : "";
+            location.replace(`index.html${search}${location.hash}`);
+            return;
+          }
+          if (params.get("mobile") !== "1") {
+            params.set("mobile", "1");
+            const qs = params.toString();
+            const search = qs ? `?${qs}` : "";
+            location.replace(`mobile.html${search}${location.hash}`);
+            return;
+          }
+          const accepted = localStorage.getItem("telemost.policyAccepted") === "true";
+          if (!accepted) {
+            try {
+              sessionStorage.setItem("telemost.returnTo", location.href);
+            } catch {}
+            location.replace("landing.html");
+          }
+        } catch {
+          location.replace("landing.html");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <canvas id="matrix-bg"></canvas>
+
+    <div id="app" class="mobile-app">
+      <header>
         <div id="status">ГОТОВ К ПОДКЛЮЧЕНИЮ</div>
 
-        <button id="global-chat-toggle" type="button" aria-label="Open global chat">?</button>
-      </header>
-
-      <nav class="mobile-tabs" aria-label="Разделы">
-        <button class="mobile-tab-btn is-active" data-mobile-tab-btn="room" type="button">
-          Комната
-        </button>
-        <button class="mobile-tab-btn" data-mobile-tab-btn="chat" type="button">
-          Чат
-        </button>
-        <button class="mobile-tab-btn" data-mobile-tab-btn="console" type="button">
-          Консоль
-        </button>
-      </nav>
-
-      <div class="mobile-panels">
-        <div class="mobile-tab-pane is-active" data-mobile-tab-pane="room">
-          <section id="room-panel" class="panel">
-            <div>Комната: <span id="room-id">--</span></div>
-            <div class="room-link-row">
-              <span>Ссылка:</span>
-              <span id="room-link">--</span>
-              <button id="btn-copy-link" disabled>Копировать</button>
-            </div>
-          </section>
-
-          <section id="participants-panel" class="panel">
-            <div class="panel-title">Участники</div>
-            <ul id="participants"></ul>
-          </section>
-        </div>
-
-        <div class="mobile-tab-pane" data-mobile-tab-pane="chat">
+        <button id="global-chat-toggle" type="button" aria-label="Open global chat">?</button>
+      </header>
+
+      <nav class="mobile-tabs" aria-label="Разделы">
+        <button class="mobile-tab-btn is-active" data-mobile-tab-btn="room" type="button">
+          Комната
+        </button>
+        <button class="mobile-tab-btn" data-mobile-tab-btn="chat" type="button">
+          Чат
+        </button>
+        <button class="mobile-tab-btn" data-mobile-tab-btn="console" type="button">
+          Консоль
+        </button>
+      </nav>
+
+      <div class="mobile-panels">
+        <div class="mobile-tab-pane is-active" data-mobile-tab-pane="room">
+          <section id="room-panel" class="panel">
+            <div>Комната: <span id="room-id">--</span></div>
+            <div class="room-link-row">
+              <span>Ссылка:</span>
+              <span id="room-link">--</span>
+              <button id="btn-copy-link" disabled>Копировать</button>
+            </div>
+          </section>
+
+          <section id="participants-panel" class="panel">
+            <div class="panel-title">Участники</div>
+            <ul id="participants"></ul>
+          </section>
+        </div>
+
+        <div class="mobile-tab-pane" data-mobile-tab-pane="chat">
           <section id="chat-panel" class="panel chat is-empty">
-            <div class="panel-title">Чат</div>
-            <div id="chat-log"></div>
-            <button id="btn-chat-toggle" type="button" hidden aria-hidden="true"></button>
-            <button id="btn-chat-file" type="button" hidden aria-hidden="true"></button>
-            <form id="mobile-chat-form" class="mobile-chat-form" autocomplete="off">
-              <input
-                id="mobile-chat-input"
-                type="text"
-                autocomplete="off"
-                placeholder="Сообщение..."
-              />
-              <button id="mobile-chat-send" type="submit">Отправить</button>
-              <button id="mobile-chat-file" type="button">Файл</button>
-            </form>
-          </section>
-        </div>
-
-        <div class="mobile-tab-pane" data-mobile-tab-pane="console">
-          <section class="panel console">
-            <div id="log"></div>
-            <form id="cmd-form" autocomplete="off">
-              <span class="cmd-arrow" role="button" tabindex="0">></span>
-              <input id="cmd-input" type="text" autocomplete="off" />
-            </form>
-            <div id="cmd-menu" class="cmd-menu" role="listbox" aria-hidden="true"></div>
-          </section>
-        </div>
-      </div>
-
-      <section class="panel controls">
-        <button id="btn-mute">Микрофон: выкл</button>
-        <button id="btn-noise">Шум: вкл</button>
-        <button id="btn-camera">Камера: выкл</button>
-        <button id="btn-camera-switch">Камера: фронт</button>
-        <button id="btn-demo">Демо</button>
+            <div class="panel-title">Чат</div>
+            <div id="chat-log"></div>
+            <button id="btn-chat-toggle" type="button" hidden aria-hidden="true"></button>
+            <button id="btn-chat-file" type="button" hidden aria-hidden="true"></button>
+            <form id="mobile-chat-form" class="mobile-chat-form" autocomplete="off">
+              <input
+                id="mobile-chat-input"
+                type="text"
+                autocomplete="off"
+                placeholder="Сообщение..."
+              />
+              <button id="mobile-chat-send" type="submit">Отправить</button>
+              <button id="mobile-chat-file" type="button">Файл</button>
+            </form>
+          </section>
+        </div>
+
+        <div class="mobile-tab-pane" data-mobile-tab-pane="console">
+          <section class="panel console">
+            <div id="log"></div>
+            <form id="cmd-form" autocomplete="off">
+              <span class="cmd-arrow" role="button" tabindex="0">></span>
+              <input id="cmd-input" type="text" autocomplete="off" />
+            </form>
+            <div id="cmd-menu" class="cmd-menu" role="listbox" aria-hidden="true"></div>
+          </section>
+        </div>
+      </div>
+
+      <section class="panel controls">
+        <button id="btn-mute">Микрофон: выкл</button>
+        <button id="btn-noise">Шум: вкл</button>
+        <button id="btn-camera">Камера: выкл</button>
+        <button id="btn-camera-switch">Камера: фронт</button>
+        <button id="btn-demo">Демо</button>
         <button id="btn-leave">Выйти</button>
-      </section>
-
-      <input id="chat-file-input" class="chat-file-hidden" type="file" />
-
-      <footer class="app-footer">
+      </section>
+
+      <input id="chat-file-input" class="chat-file-hidden" type="file" />
+
+      <footer class="app-footer">
         <a class="help-link" href="landing.html">Help</a>
       </footer>
     </div>
@@ -125,43 +125,43 @@
 
     <div id="camera-preview" class="camera-preview hidden" aria-hidden="true">
       <div id="camera-preview-handle" class="camera-preview-handle">камера</div>
-      <video id="camera-preview-video" autoplay playsinline muted></video>
-      <div id="camera-preview-resize" class="camera-preview-resize" aria-hidden="true"></div>
-    </div>
-
-    <div id="policy-modal" class="policy-modal" aria-hidden="true">
-      <div class="policy-modal-content">
-        <div class="policy-modal-title">Политика использования GB</div>
-        <div class="policy-modal-text">
-          Перед входом подтвердите согласие с правилами использования сервиса и обработкой технических
-          данных для работы соединения.
-        </div>
-        <ul class="policy-modal-list">
-          <li>Используйте сервис только для легальных целей.</li>
-          <li>Уважайте участников и соблюдайте правила общения.</li>
-          <li>Разрешаете обработку технических данных соединения.</li>
-        </ul>
-        <div class="policy-actions">
-          <button id="policy-accept">Подтверждаю</button>
-        </div>
-      </div>
-    </div>
-
+      <video id="camera-preview-video" autoplay playsinline muted></video>
+      <div id="camera-preview-resize" class="camera-preview-resize" aria-hidden="true"></div>
+    </div>
+
+    <div id="policy-modal" class="policy-modal" aria-hidden="true">
+      <div class="policy-modal-content">
+        <div class="policy-modal-title">Политика использования GB</div>
+        <div class="policy-modal-text">
+          Перед входом подтвердите согласие с правилами использования сервиса и обработкой технических
+          данных для работы соединения.
+        </div>
+        <ul class="policy-modal-list">
+          <li>Используйте сервис только для легальных целей.</li>
+          <li>Уважайте участников и соблюдайте правила общения.</li>
+          <li>Разрешаете обработку технических данных соединения.</li>
+        </ul>
+        <div class="policy-actions">
+          <button id="policy-accept">Подтверждаю</button>
+        </div>
+      </div>
+    </div>
+
     <div id="theme-modal" class="theme-modal" aria-hidden="true">
       <div class="theme-modal-content">
-        <div class="theme-modal-title">Тема</div>
-        <div class="theme-input-row">
-          <input id="theme-color-input" type="color" value="#b9fbc0" />
-          <input
-            id="theme-text-input"
-            type="text"
-            placeholder="#b9fbc0 или rgb(185, 251, 192)"
-          />
-        </div>
-        <div id="theme-error" class="theme-error" aria-live="polite"></div>
-        <div class="theme-actions">
-          <button id="theme-apply">Применить</button>
-          <button id="theme-cancel">Отмена</button>
+        <div class="theme-modal-title">Тема</div>
+        <div class="theme-input-row">
+          <input id="theme-color-input" type="color" value="#b9fbc0" />
+          <input
+            id="theme-text-input"
+            type="text"
+            placeholder="#b9fbc0 или rgb(185, 251, 192)"
+          />
+        </div>
+        <div id="theme-error" class="theme-error" aria-live="polite"></div>
+        <div class="theme-actions">
+          <button id="theme-apply">Применить</button>
+          <button id="theme-cancel">Отмена</button>
         </div>
       </div>
     </div>
@@ -203,35 +203,35 @@
       </div>
     </div>
 
-<script src="app.js"></script>
-    <script>
-      const canvas = document.getElementById("matrix-bg");
-      const ctx = canvas.getContext("2d");
-
-      let width = window.innerWidth;
-      let height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-
-      const fontSize = 14;
-      const chars = "0123456789ABCDEF";
-      const drops = new Array(Math.floor(width / fontSize)).fill(1);
-
-      const drawMatrix = () => {
-        ctx.fillStyle = "rgba(11, 13, 15, 0.05)";
-        ctx.fillRect(0, 0, width, height);
-        ctx.fillStyle = "#00ff00";
-        ctx.font = `${fontSize}px monospace`;
-        for (let i = 0; i < drops.length; i += 1) {
-          const text = chars[Math.floor(Math.random() * chars.length)];
-          ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-          if (drops[i] * fontSize > height && Math.random() > 0.975) {
-            drops[i] = 0;
-          }
-          drops[i] += 1;
-        }
-      };
-
+<script type="module" src="js/main.js"></script>
+    <script>
+      const canvas = document.getElementById("matrix-bg");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      const fontSize = 14;
+      const chars = "0123456789ABCDEF";
+      const drops = new Array(Math.floor(width / fontSize)).fill(1);
+
+      const drawMatrix = () => {
+        ctx.fillStyle = "rgba(11, 13, 15, 0.05)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#00ff00";
+        ctx.font = `${fontSize}px monospace`;
+        for (let i = 0; i < drops.length; i += 1) {
+          const text = chars[Math.floor(Math.random() * chars.length)];
+          ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+          if (drops[i] * fontSize > height && Math.random() > 0.975) {
+            drops[i] = 0;
+          }
+          drops[i] += 1;
+        }
+      };
+
       let interval = null;
       const startMatrix = () => {
         if (interval !== null || document.hidden) {
@@ -254,7 +254,7 @@
         }
       });
       startMatrix();
-
+
       window.addEventListener("resize", () => {
         width = window.innerWidth;
         height = window.innerHeight;
