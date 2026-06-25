@@ -1,5 +1,5 @@
 import {
-  statusEl, participantsEl, roomIdEl, roomLinkEl, copyLinkButton,
+  statusEl, roomIdEl, roomLinkEl, copyLinkButton,
   chatLogEl, chatPanelEl, chatToggleButton, chatFileInput, chatFileButton,
   mobileChatForm, mobileChatInput, mobileChatFileButton,
   cmdForm, cmdInput, cmdArrow, cmdMenu, muteButton, noiseButton, cameraButton,
@@ -24,7 +24,7 @@ import {
 } from "./state.js";
 import {
   clampRgb, mixChannel, rgbToHex, parseThemeColor,
-  isTypingTarget, hashString,
+  isTypingTarget,
   parseHash, formatMediaError, parseStoredNumber
 } from "./utils.js";
 import { ensureIceServers, fetchCreateRoom, resolveRoomName, looksLikeRoomId } from "./api.js";
@@ -45,7 +45,8 @@ import {
   setChatHidden, toggleChatHidden, openChatFilePicker,
   updateChatFileButton, updateMobileChatControls, sendFileMessage, sendChatMessage
 } from "./chat.js";
-import { avatarShapeOptions, normalizeAvatarShape } from "./theme.js";
+import { normalizeAvatarShape } from "./theme.js";
+import { renderParticipants, updateLocalParticipant } from "./participants.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
@@ -1825,54 +1826,6 @@ const updateRoomInfo = () => {
   }
 };
 
-const avatarShapes = Object.values(avatarShapeOptions).filter(Boolean);
-
-
-const getAvatarShapeClass = (participant) => {
-  const preferred = normalizeAvatarShape(participant.shape);
-  if (preferred && preferred !== "auto") {
-    return avatarShapeOptions[preferred];
-  }
-  if (!avatarShapes.length) {
-    return "";
-  }
-  const seed = participant.id || participant.name || "";
-  const index = hashString(seed) % avatarShapes.length;
-  return avatarShapes[index];
-};
-
-const renderParticipants = () => {
-  participantsEl.innerHTML = "";
-  state.participants.forEach((participant) => {
-    const li = document.createElement("li");
-    const avatar = document.createElement("span");
-    avatar.className = `participant-avatar ${getAvatarShapeClass(participant)}`;
-    avatar.style.backgroundColor = participant.color || state.textColor;
-    li.appendChild(avatar);
-    const name = document.createElement("span");
-    name.textContent =
-      participant.id === state.clientId
-        ? `${participant.name} (\u0432\u044b)`
-        : participant.name;
-    li.appendChild(name);
-
-    const mute = document.createElement("span");
-    mute.className = `badge ${participant.muted ? "muted" : ""}`;
-    mute.textContent = participant.muted ? "mute" : "live";
-    li.appendChild(mute);
-
-    const activity = document.createElement("span");
-    activity.className = `badge ${participant.active ? "active" : ""}`;
-    activity.textContent = participant.active ? "voice" : "idle";
-    li.appendChild(activity);
-
-    participantsEl.appendChild(li);
-  });
-};
-
-const getAudioElement = (participantId) =>
-  document.getElementById(`audio-${participantId}`);
-
 const clampVolume = (value) => Math.min(300, Math.max(0, value));
 
 const ensureAudioOutput = (audio) => {
@@ -1938,6 +1891,9 @@ const resolveParticipantId = (value) => {
   }
   return null;
 };
+
+const getAudioElement = (participantId) =>
+  document.getElementById(`audio-${participantId}`);
 
 const setParticipantVolume = (participantId, level) => {
   const safeLevel = clampVolume(level);
@@ -2200,14 +2156,6 @@ const sendActivity = (active) => {
 // ============================================================
 // Participant state
 // ============================================================
-
-const updateLocalParticipant = (patch) => {
-  const me = state.participants.get(state.clientId);
-  if (me) {
-    state.participants.set(state.clientId, { ...me, ...patch });
-    renderParticipants();
-  }
-};
 
 const updateName = (nextName) => {
   state.name = nextName.slice(0, 24);
