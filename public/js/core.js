@@ -1,5 +1,5 @@
 import {
-  statusEl, participantsEl, roomIdEl, roomLinkEl, copyLinkButton, logEl,
+  statusEl, participantsEl, roomIdEl, roomLinkEl, copyLinkButton,
   chatPanelEl, chatLogEl, chatToggleButton, chatFileInput, chatFileButton,
   mobileChatForm, mobileChatInput, mobileChatSendButton, mobileChatFileButton,
   cmdForm, cmdInput, cmdArrow, cmdMenu, muteButton, noiseButton, cameraButton,
@@ -14,12 +14,11 @@ import {
   demoResetViewButton, demoFullscreenButton, demoShareToggleButton,
   policyModal, policyAcceptButton, cameraPreview,
   cameraPreviewHandle, cameraPreviewVideo, cameraPreviewResize,
-  mobilePanelsRoot, mobileTabButtons, mobileTabPanes, mobileChatTabButton,
-  mobileConsoleTabButton, updateModalOverlayState
+  updateModalOverlayState
 } from "./dom.js";
 import { readStorage, writeStorage } from "./storage.js";
 import {
-  state, pageParams, isMobileCallMode, DEMO_COMPACT_WINDOW,
+  state, isMobileCallMode, DEMO_COMPACT_WINDOW,
   STORAGE_KEYS, DEFAULT_ICE_SERVERS, MAX_FILE_SIZE, MAX_TEXT_PREVIEW,
   MAX_CHAT_HISTORY, MAX_GLOBAL_CHAT_HISTORY, OFFER_RETRY_DELAY_MS,
   GLOBAL_CHAT_RETRY_MS, offerRetryTimers
@@ -31,30 +30,15 @@ import {
   parseHash, formatMediaError, parseStoredNumber
 } from "./utils.js";
 import { ensureIceServers, fetchCreateRoom, resolveRoomName, looksLikeRoomId } from "./api.js";
-
-const MOBILE_TAB_ORDER = ["room", "chat", "console"];
+import { log } from "./logger.js";
+import {
+  setMobileChatUnread, setMobileConsoleUnread, setMobileTab,
+  initMobileTabs, initMobileInputState, updateMobileKeyboardState
+} from "./mobile.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
 }
-
-/**
- * Append a line to the console log and scroll to the bottom.
- * @param {string} text - Message text.
- * @returns {void}
- */
-const log = (text) => {
-  if (!logEl) {
-    return;
-  }
-  const line = document.createElement("div");
-  line.textContent = text;
-  logEl.appendChild(line);
-  logEl.scrollTop = logEl.scrollHeight;
-  if (isMobileCallMode && state.mobileTab !== "console") {
-    setMobileConsoleUnread(true);
-  }
-};
 
 /**
  * Cancel a pending offer retry timer for a peer.
@@ -343,144 +327,6 @@ const setChatHidden = (hidden) => {
 
 const toggleChatHidden = () => {
   setChatHidden(!state.chatHidden);
-};
-
-const setMobileChatUnread = (unread) => {
-  state.mobileChatUnread = unread;
-  if (mobileChatTabButton) {
-    mobileChatTabButton.classList.toggle("has-unread", unread);
-  }
-};
-
-const setMobileConsoleUnread = (unread) => {
-  state.mobileConsoleUnread = unread;
-  if (mobileConsoleTabButton) {
-    mobileConsoleTabButton.classList.toggle("has-unread", unread);
-  }
-};
-
-const updateMobileKeyboardState = () => {
-  if (!isMobileCallMode) {
-    return;
-  }
-  const active = document.activeElement;
-  const focusedField =
-    active instanceof HTMLElement &&
-    (active.matches("input, textarea, [contenteditable='true']") || active === cmdInput);
-  document.body.classList.toggle("mobile-keyboard-open", focusedField);
-};
-
-const switchMobileTabByDelta = (delta) => {
-  if (!isMobileCallMode) {
-    return;
-  }
-  const index = MOBILE_TAB_ORDER.indexOf(state.mobileTab);
-  const current = index === -1 ? 0 : index;
-  const next = Math.min(MOBILE_TAB_ORDER.length - 1, Math.max(0, current + delta));
-  if (next !== current) {
-    setMobileTab(MOBILE_TAB_ORDER[next]);
-  }
-};
-
-const setMobileTab = (nextTab) => {
-  if (!isMobileCallMode || !mobileTabButtons.length || !mobileTabPanes.length) {
-    return;
-  }
-  const targetTab = String(nextTab || "room");
-  const exists = mobileTabButtons.some((button) => button.dataset.mobileTabBtn === targetTab);
-  const safeTab = exists ? targetTab : "room";
-  state.mobileTab = safeTab;
-  writeStorage(STORAGE_KEYS.mobileTab, safeTab);
-  mobileTabButtons.forEach((button) => {
-    const active = button.dataset.mobileTabBtn === safeTab;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-  });
-  mobileTabPanes.forEach((pane) => {
-    const active = pane.dataset.mobileTabPane === safeTab;
-    pane.classList.toggle("is-active", active);
-    pane.toggleAttribute("hidden", !active);
-  });
-  if (safeTab === "chat") {
-    setMobileChatUnread(false);
-  } else if (safeTab === "console") {
-    setMobileConsoleUnread(false);
-  }
-};
-
-const initMobileTabs = () => {
-  if (!isMobileCallMode || !mobileTabButtons.length || !mobileTabPanes.length) {
-    return;
-  }
-  mobileTabButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setMobileTab(button.dataset.mobileTabBtn || "room");
-    });
-  });
-
-  if (mobilePanelsRoot) {
-    let swipePointerId = null;
-    let swipeStartX = 0;
-    let swipeStartY = 0;
-
-    mobilePanelsRoot.addEventListener("pointerdown", (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      if (target.closest("input, textarea, button, select, a, [contenteditable='true']")) {
-        return;
-      }
-      swipePointerId = event.pointerId;
-      swipeStartX = event.clientX;
-      swipeStartY = event.clientY;
-    });
-
-    const clearSwipe = () => {
-      swipePointerId = null;
-    };
-
-    mobilePanelsRoot.addEventListener("pointerup", (event) => {
-      if (swipePointerId !== event.pointerId) {
-        return;
-      }
-      const dx = event.clientX - swipeStartX;
-      const dy = event.clientY - swipeStartY;
-      clearSwipe();
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) {
-        return;
-      }
-      switchMobileTabByDelta(dx < 0 ? 1 : -1);
-    });
-
-    mobilePanelsRoot.addEventListener("pointercancel", clearSwipe);
-  }
-
-  const requestedTab = pageParams.get("tab");
-  const storedTab = readStorage(STORAGE_KEYS.mobileTab);
-  setMobileTab(requestedTab || storedTab || "room");
-};
-
-const initMobileInputState = () => {
-  if (!isMobileCallMode) {
-    return;
-  }
-  document.addEventListener("focusin", () => {
-    const active = document.activeElement;
-    if (active === mobileChatInput) {
-      setMobileTab("chat");
-    } else if (active === cmdInput) {
-      setMobileTab("console");
-    }
-    updateMobileKeyboardState();
-  });
-  document.addEventListener("focusout", () => {
-    requestAnimationFrame(updateMobileKeyboardState);
-  });
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", updateMobileKeyboardState);
-  }
-  updateMobileKeyboardState();
 };
 
 const setStatus = (text) => {

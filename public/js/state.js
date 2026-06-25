@@ -164,6 +164,12 @@ export const state = {
   globalChatRetryTimer: null
 };
 
+/**
+ * Default order of mobile tabs.
+ * @type {string[]}
+ */
+export const MOBILE_TAB_ORDER = ["room", "chat", "console"];
+
 if (isMobileCallMode) {
   state.chatHidden = false;
 }
