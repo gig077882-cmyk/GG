@@ -51,13 +51,20 @@ ffff/
 │   ├── styles.css
 │   ├── mobile.css
 │   └── js/                    # ES-модули фронтенда
-│       ├── main.js
-│       ├── core.js
-│       ├── state.js
-│       ├── dom.js
-│       ├── api.js
-│       ├── storage.js
-│       └── utils.js
+│       ├── main.js            # инициализация
+│       ├── core.js            # WebRTC, Web Audio, демо, связка событий
+│       ├── state.js           # глобальное состояние и константы
+│       ├── dom.js             # ссылки на DOM-элементы
+│       ├── api.js             # REST API
+│       ├── ws.js              # WebSocket-отправка
+│       ├── logger.js          # консольный лог
+│       ├── mobile.js          # мобильные табы и клавиатура
+│       ├── commands.js        # автодополнение команд
+│       ├── chat.js            # UI чата и отправка файлов
+│       ├── participants.js    # список участников
+│       ├── theme.js           # аватары и цвета
+│       ├── storage.js         # localStorage
+│       └── utils.js           # утилиты
 └── data/                    # база данных SQLite
     └── telemost.db
 ```
