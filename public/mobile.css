@@ -1,0 +1,503 @@
+body.mobile-call-mode {
+  overflow: hidden;
+  height: 100dvh;
+}
+
+body.mobile-call-mode::before,
+body.mobile-call-mode::after {
+  display: none;
+}
+
+body.mobile-call-mode #matrix-bg {
+  opacity: 0.05;
+}
+
+body.mobile-call-mode #camera-preview {
+  left: auto !important;
+  right: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
+  width: min(42vw, 220px) !important;
+  min-width: 150px;
+  max-width: 220px;
+  height: auto;
+  border: 1px solid rgba(185, 251, 192, 0.44);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  z-index: 1420;
+}
+
+body.mobile-call-mode #camera-preview-video {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  filter: brightness(0.86) saturate(1.04);
+}
+
+body.mobile-call-mode .camera-preview-handle,
+body.mobile-call-mode .camera-preview-resize {
+  display: none;
+}
+
+body.mobile-call-mode #app {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  max-width: none;
+  margin: 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px
+    calc(env(safe-area-inset-bottom, 0px) + 96px);
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
+  transition: padding-bottom 180ms ease;
+}
+
+body.mobile-call-mode .app-footer {
+  display: none;
+}
+
+body.mobile-call-mode header,
+body.mobile-call-mode .panel,
+body.mobile-call-mode .mobile-tabs {
+  border: 1px solid rgba(185, 251, 192, 0.34);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  margin: 0;
+  box-shadow: none;
+}
+
+body.mobile-call-mode header {
+  border-bottom: 1px solid rgba(185, 251, 192, 0.34);
+  padding: 9px 10px;
+}
+
+body.mobile-call-mode #status {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--accent-color);
+  font-size: 13px;
+}
+
+body.mobile-call-mode #global-chat-toggle {
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  left: 4px;
+  width: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  height: 14px;
+  padding: 0;
+  font-size: 11px;
+}
+
+body.mobile-call-mode .mobile-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+}
+
+body.mobile-call-mode .mobile-tab-btn {
+  position: relative;
+  min-height: 40px;
+  padding: 8px 6px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  border-radius: 10px;
+  background: rgba(8, 14, 10, 0.94);
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-call-mode .mobile-tab-btn.is-active {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: rgba(18, 26, 18, 0.96);
+}
+
+body.mobile-call-mode .mobile-tab-btn.has-unread::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7afaa2;
+  box-shadow: 0 0 8px rgba(122, 250, 162, 0.9);
+}
+
+body.mobile-call-mode .mobile-panels {
+  min-height: 0;
+  display: block;
+}
+
+body.mobile-call-mode .mobile-tab-pane {
+  display: none;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  padding-right: 2px;
+}
+
+body.mobile-call-mode .mobile-tab-pane.is-active {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+body.mobile-call-mode #room-panel,
+body.mobile-call-mode #participants-panel {
+  padding: 10px;
+}
+
+body.mobile-call-mode #room-panel {
+  display: grid;
+  gap: 8px;
+}
+
+body.mobile-call-mode .room-link-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: start;
+}
+
+body.mobile-call-mode #room-link {
+  word-break: break-all;
+}
+
+body.mobile-call-mode #btn-copy-link {
+  width: 100%;
+  min-height: 42px;
+}
+
+body.mobile-call-mode #participants-panel .panel-title {
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+}
+
+body.mobile-call-mode #participants {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
+body.mobile-call-mode #participants li {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 32px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+body.mobile-call-mode #chat-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px;
+}
+
+body.mobile-call-mode #chat-panel.is-empty {
+  grid-template-rows: auto;
+}
+
+body.mobile-call-mode #chat-panel.is-empty .panel-title,
+body.mobile-call-mode #chat-panel.is-empty #chat-log {
+  display: none;
+}
+
+body.mobile-call-mode #chat-panel.hidden {
+  display: grid;
+}
+
+body.mobile-call-mode #chat-panel .panel-title {
+  margin: 0;
+  padding-bottom: 4px;
+}
+
+body.mobile-call-mode #chat-log {
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(0, 0, 0, 0.58);
+  border-color: rgba(185, 251, 192, 0.26);
+}
+
+body.mobile-call-mode #mobile-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+body.mobile-call-mode #mobile-chat-input {
+  min-width: 0;
+  min-height: 42px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(185, 251, 192, 0.3);
+  color: var(--text-color);
+  padding: 10px 12px;
+  font-family: inherit;
+  outline: none;
+  touch-action: manipulation;
+}
+
+body.mobile-call-mode #mobile-chat-input:focus-visible {
+  border-color: var(--accent-color);
+}
+
+body.mobile-call-mode #mobile-chat-send,
+body.mobile-call-mode #mobile-chat-file {
+  min-height: 42px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.mobile-call-mode .console {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: min(54dvh, 460px);
+  padding: 10px;
+}
+
+body.mobile-call-mode #log {
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px;
+  border: 1px solid rgba(185, 251, 192, 0.24);
+  background: rgba(0, 0, 0, 0.62);
+}
+
+body.mobile-call-mode #cmd-form {
+  gap: 6px;
+}
+
+body.mobile-call-mode .cmd-arrow {
+  width: 34px;
+  height: 34px;
+}
+
+body.mobile-call-mode #cmd-input {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+body.mobile-call-mode #cmd-menu {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: calc(100% + 8px);
+  max-width: none;
+}
+
+body.mobile-call-mode .controls {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  z-index: 1450;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+body.mobile-call-mode .controls button {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 6px;
+  font-size: 10px;
+  line-height: 1.2;
+  background: rgba(8, 14, 10, 0.95);
+  border-color: rgba(185, 251, 192, 0.4);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-call-mode .controls button:hover:not(:disabled) {
+  background: rgba(18, 26, 18, 0.95);
+}
+
+body.mobile-call-mode #btn-leave {
+  border-color: #f28482;
+  color: #f28482;
+}
+
+body.mobile-call-mode #btn-leave:hover:not(:disabled) {
+  border-color: #f28482;
+  color: #f28482;
+}
+
+body.mobile-call-mode #btn-camera-switch {
+  display: inline-flex;
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+body.mobile-call-mode #btn-camera-switch:disabled {
+  opacity: 0.5;
+}
+
+body.mobile-call-mode #btn-noise,
+body.mobile-call-mode #btn-demo {
+  opacity: 0.94;
+}
+
+body.mobile-call-mode .demo-modal-content {
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 8px;
+  right: auto;
+  width: min(84vw, 320px);
+  min-width: 200px;
+  height: auto;
+  padding: 0;
+  gap: 0;
+}
+
+body.mobile-call-mode .demo-modal {
+  background: transparent;
+  pointer-events: none;
+}
+
+body.mobile-call-mode .global-chat-modal {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px
+    calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+body.mobile-call-mode .global-chat-modal-content {
+  width: 100%;
+  max-height: none;
+  height: 100%;
+  min-height: 0;
+}
+
+body.mobile-call-mode .global-chat-log {
+  max-height: none;
+  min-height: 0;
+}
+
+body.mobile-call-mode .demo-header {
+  cursor: default;
+  touch-action: auto;
+}
+
+body.mobile-call-mode .demo-source-controls {
+  display: none;
+}
+
+body.mobile-call-mode .demo-view-controls {
+  display: none;
+}
+
+body.mobile-call-mode .demo-view-controls .demo-zoom-indicator {
+  display: none;
+}
+
+body.mobile-call-mode .demo-tool-btn {
+  display: none;
+}
+
+body.mobile-call-mode #demo-share-toggle {
+  display: none;
+}
+
+body.mobile-call-mode .demo-status {
+  display: none;
+}
+
+body.mobile-call-mode .demo-resize {
+  display: none;
+}
+
+body.mobile-call-mode.mobile-keyboard-open #app {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+body.mobile-call-mode.mobile-keyboard-open .controls {
+  transform: translateY(calc(100% + 14px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.mobile-call-mode.mobile-keyboard-open #camera-preview {
+  opacity: 0.25;
+}
+
+@media (max-width: 420px) {
+  body.mobile-call-mode #camera-preview {
+    width: min(44vw, 180px) !important;
+    max-width: 180px;
+    top: calc(env(safe-area-inset-top, 0px) + 56px) !important;
+  }
+
+  body.mobile-call-mode #app {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 116px);
+  }
+
+  body.mobile-call-mode .mobile-tab-btn {
+    font-size: 10px;
+    min-height: 38px;
+  }
+
+  body.mobile-call-mode .controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.mobile-call-mode .controls button {
+    min-height: 40px;
+    font-size: 10px;
+    padding: 7px 6px;
+  }
+
+  body.mobile-call-mode #mobile-chat-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.mobile-call-mode #mobile-chat-file {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  body.mobile-call-mode #app {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  }
+
+  body.mobile-call-mode .controls {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  body.mobile-call-mode .controls button {
+    min-height: 36px;
+    font-size: 9px;
+  }
+
+  body.mobile-call-mode .console {
+    min-height: min(44dvh, 320px);
+  }
+}

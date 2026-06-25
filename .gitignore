@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+app/node_modules/
+
+# Environment variables
+.env
+
+# Database files
+data/*.db
+data/*.sqlite
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron build output
+dist/
+build/

@@ -1,0 +1,22 @@
+{
+  "name": "telemost-cmd",
+  "version": "1.0.0",
+  "description": "CMD-style audio meetings with WebRTC and WebSocket signaling",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "app": "cd app && npm run start",
+    "app:dev": "cd app && npm run dev",
+    "install:app": "cd app && npm install",
+    "build:app": "cd app && npm run build"
+  },
+  "dependencies": {
+    "@jitsi/rnnoise-wasm": "0.2.1",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
