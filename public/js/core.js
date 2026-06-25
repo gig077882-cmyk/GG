@@ -45,6 +45,7 @@ import {
   setChatHidden, toggleChatHidden, openChatFilePicker,
   updateChatFileButton, updateMobileChatControls, sendFileMessage, sendChatMessage
 } from "./chat.js";
+import { avatarShapeOptions, normalizeAvatarShape } from "./theme.js";
 
 if (isMobileCallMode) {
   document.body.classList.add("mobile-call-mode");
@@ -185,23 +186,6 @@ const setStatus = (text) => {
 };
 
 const demoSources = new Map();
-
-const avatarShapeOptions = {
-  auto: "",
-  square: "shape-square",
-  circle: "shape-circle",
-  diamond: "shape-diamond",
-  hex: "shape-hex",
-  triangle: "shape-triangle"
-};
-
-const normalizeAvatarShape = (value) => {
-  const key = String(value || "").trim().toLowerCase();
-  if (!key) {
-    return null;
-  }
-  return Object.prototype.hasOwnProperty.call(avatarShapeOptions, key) ? key : null;
-};
 
 const setTextColor = (r, g, b) => {
   const red = clampRgb(r);
