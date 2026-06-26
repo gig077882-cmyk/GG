@@ -279,10 +279,7 @@
       }
       patchAppLinksForMobile();
       patchAppLinksForHash();
-      const themeToggleButton = document.getElementById("theme-mode-toggle");
-      if (themeToggleButton) {
-        themeToggleButton.addEventListener("click", cycleLandingThemeMode);
-      }
+
       const accepted = readPolicy() === "true";
       const returnTo = readReturnTo();
       if (isHelpMode && returnTo) {
@@ -355,6 +352,10 @@
         applyLandingThemeMode(LANDING_THEME_MODES[(index + 1) % LANDING_THEME_MODES.length]);
       };
       applyLandingThemeMode(readLandingThemeMode());
+      const themeToggleButton = document.getElementById("theme-mode-toggle");
+      if (themeToggleButton) {
+        themeToggleButton.addEventListener("click", cycleLandingThemeMode);
+      }
       window
         .matchMedia("(prefers-color-scheme: light)")
         .addEventListener("change", () => {
