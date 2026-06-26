@@ -226,6 +226,36 @@
           sessionStorage.removeItem("telemost.returnTo");
         } catch {}
       };
+      const writeReturnTo = (url) => {
+        try {
+          sessionStorage.setItem("telemost.returnTo", url);
+        } catch {}
+      };
+      const getHashRoomReturnUrl = () => {
+        const hash = location.hash;
+        if (!hash) {
+          return null;
+        }
+        const params = new URLSearchParams(hash.slice(1));
+        return params.get("room") ? `index.html${hash}` : null;
+      };
+      const patchAppLinksForHash = () => {
+        const roomReturnUrl = getHashRoomReturnUrl();
+        const hash = location.hash;
+        document.querySelectorAll('a[href="index.html"]').forEach((link) => {
+          link.setAttribute("href", roomReturnUrl || "index.html");
+        });
+        document.querySelectorAll('a[href^="mobile.html"]').forEach((link) => {
+          const base = getMobileAppUrl();
+          link.setAttribute("href", hash && roomReturnUrl ? `${base}${hash}` : base);
+        });
+      };
+      const roomReturnUrl = getHashRoomReturnUrl();
+      if (roomReturnUrl) {
+        writeReturnTo(roomReturnUrl);
+      } else {
+        clearReturnTo();
+      }
       if (policyAcceptButton) {
         policyAcceptButton.addEventListener("click", () => {
           try {
@@ -240,10 +270,15 @@
           }
           if (!isHelpMode && isMobilePhone()) {
             location.replace(getMobileAppUrl());
+            return;
+          }
+          if (!isHelpMode) {
+            location.replace("index.html");
           }
         });
       }
       patchAppLinksForMobile();
+      patchAppLinksForHash();
       const themeToggleButton = document.getElementById("theme-mode-toggle");
       if (themeToggleButton) {
         themeToggleButton.addEventListener("click", cycleLandingThemeMode);
